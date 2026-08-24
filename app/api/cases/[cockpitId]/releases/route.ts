@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { setFindingReleased } from "@/lib/cases";
+import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
 
 const SEE_OTHER = 303;
 
@@ -26,17 +26,18 @@ export async function POST(
   const { cockpitId } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
-  const intent = String(formData.get("intent") ?? "").trim();
+  const intentValue = String(formData.get("intent") ?? "").trim();
   const origin = new URL(request.url).origin;
 
-  if (intent !== "release" && intent !== "unrelease") {
+  if (intentValue !== "release" && intentValue !== "unrelease") {
     return redirectToError(origin, `/cockpit/${cockpitId}`, "Ungültige Aktion.");
   }
+  const intent: ReleaseIntent = intentValue;
 
   const result = await setFindingReleased({
     cockpitId,
     findingId,
-    released: intent === "release",
+    intent,
   });
 
   if (result === "unknown-case") {

@@ -10,7 +10,7 @@ export type Finding = {
   id: string;
   name: string;
   note: string | null;
-  releasedAt: string | null;
+  releasedAt: Date | null;
 };
 
 export type CaseOverview = {
@@ -72,9 +72,16 @@ export async function createCase(input: {
   throw new Error("Konnte keinen eindeutigen Fallcode erzeugen");
 }
 
-export async function getCaseOverview(
+type CaseRow = {
+  id: string;
+  caseTypeId: string;
+  name: string;
+  code: string;
+};
+
+async function getCaseByCockpitId(
   cockpitId: string,
-): Promise<CaseOverview | null> {
+): Promise<CaseRow | undefined> {
   const [row] = await sql<
     { id: string; caseTypeId: string; name: string; code: string }[]
   >`
@@ -82,7 +89,13 @@ export async function getCaseOverview(
     from cases
     where cockpit_id = ${cockpitId}
   `;
+  return row;
+}
 
+export async function getCaseOverview(
+  cockpitId: string,
+): Promise<CaseOverview | null> {
+  const row = await getCaseByCockpitId(cockpitId);
   if (!row) return null;
 
   const findings = await sql<Finding[]>`
@@ -97,18 +110,16 @@ export async function getCaseOverview(
   return { name: row.name, code: row.code, findings };
 }
 
+export type ReleaseIntent = "release" | "unrelease";
+
 export type ReleaseResult = "ok" | "unknown-case" | "unknown-finding";
 
 export async function setFindingReleased(input: {
   cockpitId: string;
   findingId: string;
-  released: boolean;
+  intent: ReleaseIntent;
 }): Promise<ReleaseResult> {
-  const [row] = await sql<{ id: string; caseTypeId: string }[]>`
-    select id, case_type_id as "caseTypeId"
-    from cases
-    where cockpit_id = ${input.cockpitId}
-  `;
+  const row = await getCaseByCockpitId(input.cockpitId);
   if (!row) return "unknown-case";
 
   const [finding] = await sql<{ id: string }[]>`
@@ -118,7 +129,7 @@ export async function setFindingReleased(input: {
   `;
   if (!finding) return "unknown-finding";
 
-  if (input.released) {
+  if (input.intent === "release") {
     await sql`
       insert into releases (case_id, finding_id)
       values (${row.id}, ${finding.id})

@@ -76,8 +76,8 @@ export default async function CockpitPage({
               {finding.releasedAt ? (
                 <p style={releasedBadgeStyle}>
                   Freigegeben um{" "}
-                  <time dateTime={finding.releasedAt}>
-                    {releaseTimeFormat.format(new Date(finding.releasedAt))}
+                  <time dateTime={finding.releasedAt.toISOString()}>
+                    {releaseTimeFormat.format(finding.releasedAt)}
                   </time>{" "}
                   Uhr
                 </p>

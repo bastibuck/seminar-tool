@@ -8,12 +8,32 @@ import {
   getStartPage,
 } from "../support/cases";
 
-type FindingView = { id: string; name: string; released: boolean };
+type FindingView = {
+  id: string;
+  name: string;
+  released: boolean;
+  releasedAtIso: string | null;
+};
 
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
 
 const FOREIGN_TYPE_ID = "31111111-4111-4111-8111-111111111111";
 const FOREIGN_FINDING_ID = "32111111-4111-4111-8111-111111111111";
+
+// The one deliberate exception to "assert at the HTTP seam, never internals":
+// un-releasing must delete the record instead of flagging it hidden
+// ("no trace in any data the viewer could observe"). Until ticket 4 ships the
+// viewer feed, this table is the only data a viewer would observe.
+async function hasAnyRelease(cockpitId: string): Promise<boolean> {
+  const rows = await db`
+    select 1
+    from releases r
+    join cases c on c.id = r.case_id
+    where c.cockpit_id = ${cockpitId}
+    limit 1
+  `;
+  return rows.length > 0;
+}
 
 const db = connectTestDb();
 
@@ -38,7 +58,15 @@ function extractFindings(cockpitHtml: string): FindingView[] {
   for (const [, id, content] of cockpitHtml.matchAll(rowPattern)) {
     const name = content.match(/<strong>([^<]*)<\/strong>/)?.[1];
     if (!name) throw new Error("Finding row without a name on the cockpit");
-    findings.push({ id, name, released: content.includes("Freigegeben") });
+    const releasedAtIso = content.match(
+      /<time datetime="([^"]+)">/i,
+    )?.[1] as string | null;
+    findings.push({
+      id,
+      name,
+      released: releasedAtIso !== null && content.includes("Freigegeben"),
+      releasedAtIso,
+    });
   }
   if (findings.length === 0) {
     throw new Error("No findings rendered on the cockpit page");
@@ -73,18 +101,6 @@ async function createCaseOfType(
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
   return response.headers.get("location")!;
-}
-
-type ReleaseRow = { findingId: string; releasedAt: Date };
-
-async function releaseRows(cockpitId: string): Promise<ReleaseRow[]> {
-  return db`
-    select r.finding_id as "findingId", r.released_at as "releasedAt"
-    from releases r
-    join cases c on c.id = r.case_id
-    where c.cockpit_id = ${cockpitId}
-    order by r.released_at asc, r.id asc
-  `;
 }
 
 async function createFreshCase(name: string): Promise<{
@@ -141,7 +157,7 @@ describe("release toggle lifecycle", () => {
     const findings = extractFindings(await getCockpit(cockpitUrl));
     expect(findings.every((finding) => !finding.released)).toBe(true);
 
-    await expect(releaseRows(cockpitIdOf(cockpitUrl))).resolves.toEqual([]);
+    expect(await hasAnyRelease(cockpitIdOf(cockpitUrl))).toBe(false);
   });
 });
 
@@ -160,14 +176,21 @@ describe("chronological release order", () => {
       expect(response.status).toBe(303);
     }
 
-    const rows = await releaseRows(cockpitIdOf(cockpitUrl));
-    expect(rows.map((row) => row.findingId)).toEqual(
-      scrambled.map((finding) => finding.id),
+    const releaseTimeById = new Map(
+      extractFindings(await getCockpit(cockpitUrl)).map((finding) => [
+        finding.id,
+        finding.releasedAtIso,
+      ]),
     );
-    for (let i = 1; i < rows.length; i++) {
-      expect(rows[i]!.releasedAt.getTime()).toBeGreaterThan(
-        rows[i - 1]!.releasedAt.getTime(),
-      );
+    for (const finding of scrambled) {
+      expect(releaseTimeById.get(finding.id)).toBeDefined();
+    }
+
+    const timesInReleaseOrder = scrambled.map((finding) =>
+      new Date(releaseTimeById.get(finding.id)!).getTime(),
+    );
+    for (let i = 1; i < timesInReleaseOrder.length; i++) {
+      expect(timesInReleaseOrder[i]).toBeGreaterThan(timesInReleaseOrder[i - 1]!);
     }
   });
 
@@ -193,9 +216,16 @@ describe("chronological release order", () => {
       intent: "release",
     });
 
-    const rows = await releaseRows(cockpitIdOf(cockpitUrl));
-    expect(rows.map((row) => row.findingId)).toEqual([first.id, second.id]);
-    expect(rows).toHaveLength(2);
+    const state = extractFindings(await getCockpit(cockpitUrl));
+    const released = state.filter((finding) => finding.released);
+    expect(released.map((finding) => finding.id)).toEqual([
+      first.id,
+      second.id,
+    ]);
+    const [firstTime, secondTime] = released.map((finding) =>
+      new Date(finding.releasedAtIso!).getTime(),
+    );
+    expect(secondTime).toBeGreaterThan(firstTime!);
   });
 });
 
@@ -244,10 +274,7 @@ describe("cross-case independence", () => {
     stateB = extractFindings(await getCockpit(urlB));
     expect(stateA.every((finding) => !finding.released)).toBe(true);
     expect(stateB.filter((finding) => finding.released)).toHaveLength(1);
-
-    await expect(releaseRows(cockpitIdOf(urlA))).resolves.toEqual([]);
-    const rowsB = await releaseRows(cockpitIdOf(urlB));
-    expect(rowsB.map((row) => row.findingId)).toEqual([findingsB[3]!.id]);
+    expect(stateB.find((f) => f.released)?.id).toBe(findingsB[3]!.id);
   });
 });
 
@@ -296,6 +323,5 @@ describe("POST /api/cases/[cockpitId]/releases error handling", () => {
 
     const stateA = extractFindings(await getCockpit(urlA));
     expect(stateA.every((finding) => !finding.released)).toBe(true);
-    await expect(releaseRows(cockpitIdOf(urlA))).resolves.toEqual([]);
   });
 });
