@@ -18,7 +18,11 @@ npm run db:start     # start the local Supabase stack (Postgres on :54322)
 npm run dev          # start the app at http://localhost:3000
 ```
 
-The home page performs a trivial read from the local database and shows the connection status.
+The home page is the cockpit start page: pick a seeded Case Type, name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join.
+
+## Seeding
+
+`supabase/seed.sql` ships one example Case Type ("Akuter Thoraxschmerz") with its findings. It runs automatically on `npm run db:reset` / `npm test` and is idempotent: re-running it never duplicates rows.
 
 ## Testing
 
@@ -31,7 +35,8 @@ One command runs the whole verification: it starts the Supabase stack if needed,
 Useful extras:
 
 - `npm run typecheck` — TypeScript, no emit
-- `npx vitest run tests/integration/app.test.ts` — a single test file against an already-prepared stack
+- `npx vitest run tests/integration/create-case.test.ts` — a single integration test file against an already-prepared stack
+- `npx vitest run tests/unit/short-code.test.ts` — pure unit tests (no database or server needed)
 - `npm run db:reset` — re-apply migrations from scratch
 - `npm run db:stop` — stop the Supabase stack
 
