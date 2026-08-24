@@ -1,6 +1,5 @@
+import { generateCaseCode } from "./case-code";
 import { sql } from "./db";
-
-import { generateShortCode } from "./short-code";
 
 export type CaseType = {
   id: string;
@@ -29,7 +28,8 @@ export async function listCaseTypes(): Promise<CaseType[]> {
   `;
 }
 
-async function caseTypeExists(id: string): Promise<boolean> {
+export async function caseTypeExists(id: string): Promise<boolean> {
+  if (id === "") return false;
   const rows = await sql<{ id: string }[]>`
     select id
     from case_types
@@ -38,12 +38,16 @@ async function caseTypeExists(id: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-function isUniqueViolation(error: unknown): boolean {
+const CASE_CODE_CONSTRAINT = "cases_code_key";
+
+function isCodeCollision(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error as { code?: unknown }).code === "23505"
+    (error as { code?: unknown }).code === "23505" &&
+    "constraint" in error &&
+    (error as { constraint?: unknown }).constraint === CASE_CODE_CONSTRAINT
   );
 }
 
@@ -52,7 +56,7 @@ export async function createCase(input: {
   caseTypeId: string;
 }): Promise<string> {
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-    const code = generateShortCode();
+    const code = generateCaseCode();
     try {
       const rows = await sql<{ cockpit_id: string }[]>`
         insert into cases (case_type_id, name, code)
@@ -61,17 +65,10 @@ export async function createCase(input: {
       `;
       return rows[0]!.cockpit_id;
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
+      if (!isCodeCollision(error)) throw error;
     }
   }
   throw new Error("Konnte keinen eindeutigen Fallcode erzeugen");
-}
-
-export async function validateCaseType(
-  caseTypeId: string,
-): Promise<boolean> {
-  if (caseTypeId === "") return false;
-  return caseTypeExists(caseTypeId);
 }
 
 export async function getCaseOverview(

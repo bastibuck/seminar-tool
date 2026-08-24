@@ -5,9 +5,9 @@ const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   .split("")
   .filter((letter) => !AMBIGUITY_EXCLUSIONS.has(letter));
 
-export const SHORT_CODE_ALPHABET = DIGITS + LETTERS.join("");
+export const CASE_CODE_ALPHABET = DIGITS + LETTERS.join("");
 
-export const SHORT_CODE_LENGTH = 6;
+export const CASE_CODE_LENGTH = 6;
 
 export type RandomInt = (maxExclusive: number) => number;
 
@@ -22,16 +22,14 @@ function defaultRandomInt(maxExclusive: number): number {
   return value % maxExclusive;
 }
 
-export function generateShortCode(
-  randomInt: RandomInt = defaultRandomInt,
-): string {
+export function generateCaseCode(randomInt: RandomInt = defaultRandomInt): string {
   let code = "";
-  for (let i = 0; i < SHORT_CODE_LENGTH; i++) {
-    code += SHORT_CODE_ALPHABET[randomInt(SHORT_CODE_ALPHABET.length)];
+  for (let i = 0; i < CASE_CODE_LENGTH; i++) {
+    code += CASE_CODE_ALPHABET[randomInt(CASE_CODE_ALPHABET.length)];
   }
   return code;
 }
 
-export function formatShortCode(code: string): string {
+export function formatCaseCode(code: string): string {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }

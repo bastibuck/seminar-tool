@@ -22,7 +22,7 @@ The home page is the cockpit start page: pick a seeded Case Type, name the Case,
 
 ## Seeding
 
-`supabase/seed.sql` ships one example Case Type ("Akuter Thoraxschmerz") with its findings. It runs automatically on `npm run db:reset` / `npm test` and is idempotent: re-running it never duplicates rows.
+`supabase/seed.sql` ships one example Case Type ("Akuter Thoraxschmerz") with its findings. It runs automatically on `npm run db:reset` / `npm test` and is idempotent: re-running it never duplicates rows. Edits to already-seeded content only take effect after `npm run db:reset`.
 
 ## Testing
 
@@ -36,7 +36,7 @@ Useful extras:
 
 - `npm run typecheck` — TypeScript, no emit
 - `npx vitest run tests/integration/create-case.test.ts` — a single integration test file against an already-prepared stack
-- `npx vitest run tests/unit/short-code.test.ts` — pure unit tests (no database or server needed)
+- `npx vitest run tests/unit/case-code.test.ts` — pure unit tests (no database or server needed)
 - `npm run db:reset` — re-apply migrations from scratch
 - `npm run db:stop` — stop the Supabase stack
 

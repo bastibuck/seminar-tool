@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { formatCaseCode } from "@/lib/case-code";
 import { getCaseOverview } from "@/lib/cases";
-import { formatShortCode } from "@/lib/short-code";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function CockpitPage({ params }: CockpitPageProps) {
       <h1>{overview.name}</h1>
       <p>
         Fallcode für die Studierenden:{" "}
-        <strong style={codeStyle}>{formatShortCode(overview.code)}</strong>
+        <strong style={codeStyle}>{formatCaseCode(overview.code)}</strong>
       </p>
       <section aria-label="Befunde">
         <h2>Befunde</h2>

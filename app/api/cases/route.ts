@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createCase, validateCaseType } from "@/lib/cases";
+import { caseTypeExists, createCase } from "@/lib/cases";
 
 const SEE_OTHER = 303;
 
@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return redirectToError(origin, "Bitte gib einen Fallnamen ein.");
   }
 
-  if (!(await validateCaseType(caseTypeId))) {
+  if (!(await caseTypeExists(caseTypeId))) {
     return redirectToError(origin, "Unbekannter Falltyp.");
   }
 
