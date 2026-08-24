@@ -1,12 +1,18 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import {
+  CODE_PATTERN,
+  connectTestDb,
+  createCase,
+  extractCaseTypeId,
+  extractCode,
+  getStartPage,
+} from "../support/cases";
 
-const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{3}-[2-9A-HJKMNP-TV-Z]{3}/;
 const SEEDED_TYPE_NAME = "Akuter Thoraxschmerz";
 const SEEDED_FINDING_NAMES = [
   "Anamnese",
@@ -16,40 +22,6 @@ const SEEDED_FINDING_NAMES = [
   "Röntgen-Thorax",
   "Diagnose",
 ];
-
-async function getStartPage(): Promise<string> {
-  const response = await fetch(`${BASE_URL}/`);
-  expect(response.status).toBe(200);
-  return response.text();
-}
-
-function extractCaseTypeId(startPageHtml: string): string {
-  const match = startPageHtml.match(/<option value="([0-9a-f-]{36})"/);
-  if (!match) throw new Error("No case type found on the start page");
-  return match[1]!;
-}
-
-async function createCase(input: {
-  name?: string;
-  caseTypeId?: string;
-}): Promise<Response> {
-  const body = new URLSearchParams({
-    name: input.name ?? "Herzinfarkt Demo",
-    caseTypeId: input.caseTypeId ?? "",
-  });
-  return fetch(`${BASE_URL}/api/cases`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-    redirect: "manual",
-  });
-}
-
-function extractCode(cockpitHtml: string): string {
-  const match = cockpitHtml.match(CODE_PATTERN);
-  if (!match) throw new Error("No short code shown on the cockpit page");
-  return match[0];
-}
 
 describe("cockpit start page", () => {
   it("offers the seeded case type in German", async () => {
@@ -169,10 +141,7 @@ describe("seed script", () => {
     const before = ((await getStartPage()).match(/<option value="/g) ?? [])
       .length;
 
-    const sql = postgres(
-      process.env.DATABASE_URL ??
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-    );
+    const sql = connectTestDb();
     try {
       await sql.file(
         fileURLToPath(new URL("../../supabase/seed.sql", import.meta.url)),

@@ -18,7 +18,7 @@ npm run db:start     # start the local Supabase stack (Postgres on :54322)
 npm run dev          # start the app at http://localhost:3000
 ```
 
-The home page is the cockpit start page: pick a seeded Case Type, name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join.
+The home page is the cockpit start page: pick a seeded Case Type, name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace.
 
 ## Seeding
 

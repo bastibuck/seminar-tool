@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 type CockpitPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 };
 
 const COCKPIT_ID_PATTERN =
@@ -25,8 +26,27 @@ const codeStyle = {
   fontWeight: 700,
 } as const;
 
-export default async function CockpitPage({ params }: CockpitPageProps) {
-  const { id } = await params;
+const releasedBadgeStyle = {
+  color: "#1a7f37",
+  fontWeight: 600,
+} as const;
+
+const heldBackBadgeStyle = {
+  color: "#57606a",
+} as const;
+
+const releaseTimeFormat = new Intl.DateTimeFormat("de-DE", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "Europe/Berlin",
+});
+
+export default async function CockpitPage({
+  params,
+  searchParams,
+}: CockpitPageProps) {
+  const [{ id }, { error }] = await Promise.all([params, searchParams]);
 
   if (!COCKPIT_ID_PATTERN.test(id)) notFound();
 
@@ -41,13 +61,40 @@ export default async function CockpitPage({ params }: CockpitPageProps) {
         Fallcode für die Studierenden:{" "}
         <strong style={codeStyle}>{formatCaseCode(overview.code)}</strong>
       </p>
+      {error ? (
+        <p role="alert" style={{ color: "#b00020" }}>
+          {error}
+        </p>
+      ) : null}
       <section aria-label="Befunde">
         <h2>Befunde</h2>
         <ol>
           {overview.findings.map((finding) => (
-            <li key={finding.id}>
+            <li key={finding.id} data-finding-id={finding.id}>
               <strong>{finding.name}</strong>
               {finding.note ? <p>{finding.note}</p> : null}
+              {finding.releasedAt ? (
+                <p style={releasedBadgeStyle}>
+                  Freigegeben um{" "}
+                  <time dateTime={finding.releasedAt}>
+                    {releaseTimeFormat.format(new Date(finding.releasedAt))}
+                  </time>{" "}
+                  Uhr
+                </p>
+              ) : (
+                <p style={heldBackBadgeStyle}>Zurückgehalten</p>
+              )}
+              <form method="post" action={`/api/cases/${id}/releases`}>
+                <input type="hidden" name="findingId" value={finding.id} />
+                <input
+                  type="hidden"
+                  name="intent"
+                  value={finding.releasedAt ? "unrelease" : "release"}
+                />
+                <button type="submit">
+                  {finding.releasedAt ? "Zurückziehen" : "Freigeben"}
+                </button>
+              </form>
             </li>
           ))}
         </ol>

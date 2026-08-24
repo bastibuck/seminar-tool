@@ -10,6 +10,7 @@ export type Finding = {
   id: string;
   name: string;
   note: string | null;
+  releasedAt: string | null;
 };
 
 export type CaseOverview = {
@@ -75,9 +76,9 @@ export async function getCaseOverview(
   cockpitId: string,
 ): Promise<CaseOverview | null> {
   const [row] = await sql<
-    { caseTypeId: string; name: string; code: string }[]
+    { id: string; caseTypeId: string; name: string; code: string }[]
   >`
-    select case_type_id as "caseTypeId", name, code
+    select id, case_type_id as "caseTypeId", name, code
     from cases
     where cockpit_id = ${cockpitId}
   `;
@@ -85,11 +86,50 @@ export async function getCaseOverview(
   if (!row) return null;
 
   const findings = await sql<Finding[]>`
-    select id, name, note
-    from findings
-    where case_type_id = ${row.caseTypeId}
-    order by position
+    select f.id, f.name, f.note, r.released_at as "releasedAt"
+    from findings f
+    left join releases r
+      on r.finding_id = f.id and r.case_id = ${row.id}
+    where f.case_type_id = ${row.caseTypeId}
+    order by f.position
   `;
 
   return { name: row.name, code: row.code, findings };
+}
+
+export type ReleaseResult = "ok" | "unknown-case" | "unknown-finding";
+
+export async function setFindingReleased(input: {
+  cockpitId: string;
+  findingId: string;
+  released: boolean;
+}): Promise<ReleaseResult> {
+  const [row] = await sql<{ id: string; caseTypeId: string }[]>`
+    select id, case_type_id as "caseTypeId"
+    from cases
+    where cockpit_id = ${input.cockpitId}
+  `;
+  if (!row) return "unknown-case";
+
+  const [finding] = await sql<{ id: string }[]>`
+    select id
+    from findings
+    where id = ${input.findingId} and case_type_id = ${row.caseTypeId}
+  `;
+  if (!finding) return "unknown-finding";
+
+  if (input.released) {
+    await sql`
+      insert into releases (case_id, finding_id)
+      values (${row.id}, ${finding.id})
+      on conflict (case_id, finding_id) do nothing
+    `;
+  } else {
+    await sql`
+      delete from releases
+      where case_id = ${row.id} and finding_id = ${finding.id}
+    `;
+  }
+
+  return "ok";
 }
