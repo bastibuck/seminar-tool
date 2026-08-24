@@ -1,0 +1,3 @@
+# Cases reference case-type findings; no snapshotting
+
+When a case starts from a case type, its findings are referenced, not copied into the run. Editing or removing a type finding therefore retroactively affects every past run's viewer. We accepted this because students do not review cases outside the classroom, findings rarely change once authored, and V1 has no type editor (types are seeded in version control), so mutations are deliberate developer actions. Rejected alternative: snapshotting findings into each run for immutable history — unnecessary given the above, at the cost of duplicate storage and sync questions.
