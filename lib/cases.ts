@@ -110,6 +110,42 @@ export async function getCaseOverview(
   return { name: row.name, code: row.code, findings };
 }
 
+export type ReleasedFinding = {
+  id: string;
+  name: string;
+  note: string | null;
+  releasedAt: Date;
+};
+
+export type ViewerCase = {
+  name: string;
+  findings: ReleasedFinding[];
+};
+
+export async function getCaseByCode(
+  code: string,
+): Promise<ViewerCase | null> {
+  const rows = await sql<{ id: string; name: string }[]>`
+    select id, name
+    from cases
+    where code = ${code}
+  `;
+  const row = rows[0];
+  if (!row) return null;
+
+  const findings = await sql<ReleasedFinding[]>`
+    select f.id, f.name, f.note, r.released_at as "releasedAt"
+    from findings f
+    join releases r on r.finding_id = f.id and r.case_id = ${row.id}
+    where f.case_type_id = (
+      select case_type_id from cases where id = ${row.id}
+    )
+    order by r.released_at
+  `;
+
+  return { name: row.name, findings };
+}
+
 export type ReleaseIntent = "release" | "unrelease";
 
 export type ReleaseResult = "ok" | "unknown-case" | "unknown-finding";
