@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -44,7 +44,6 @@ export function ViewerRealtime({
   initialFindings,
 }: ViewerRealtimeProps) {
   const [findings, setFindings] = useState<ReleasedFinding[]>(initialFindings);
-  const mountedRef = useRef(false);
 
   const fetchFindings = useCallback(async () => {
     try {
@@ -65,7 +64,6 @@ export function ViewerRealtime({
   }, [caseCode]);
 
   useEffect(() => {
-    mountedRef.current = true;
     const supabase = getSupabaseBrowserClient();
 
     const channel = supabase
@@ -85,7 +83,6 @@ export function ViewerRealtime({
       .subscribe();
 
     return () => {
-      mountedRef.current = false;
       supabase.removeChannel(channel);
     };
   }, [caseId, fetchFindings]);
