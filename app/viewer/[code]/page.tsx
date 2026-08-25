@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { formatCaseCode } from "@/lib/case-code";
+import { formatCaseCode, normalizeCode } from "@/lib/case-code";
 import { getCaseByCode } from "@/lib/cases";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ type ViewerPageProps = {
 
 export default async function ViewerPage({ params }: ViewerPageProps) {
   const { code: rawCode } = await params;
-  const code = rawCode.replace("-", "").toUpperCase();
+  const code = normalizeCode(rawCode);
 
   const viewerCase = await getCaseByCode(code);
   if (!viewerCase) notFound();

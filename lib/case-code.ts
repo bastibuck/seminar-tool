@@ -33,3 +33,7 @@ export function generateCaseCode(randomInt: RandomInt = defaultRandomInt): strin
 export function formatCaseCode(code: string): string {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
+
+export function normalizeCode(raw: string): string {
+  return raw.replace("-", "").toUpperCase();
+}

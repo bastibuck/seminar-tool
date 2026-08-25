@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeCode } from "../../lib/case-code";
 import { BASE_URL } from "../setup/server-address";
 import {
   createCase,
@@ -17,15 +18,13 @@ async function getCockpit(cockpitUrl: string): Promise<string> {
 async function createFreshCase(name: string): Promise<{
   cockpitUrl: string;
   code: string;
-  rawCode: string;
 }> {
   const caseTypeId = extractCaseTypeId(await getStartPage());
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
   const cockpitUrl = response.headers.get("location")!;
   const code = extractCode(await getCockpit(cockpitUrl));
-  const rawCode = code.replace("-", "");
-  return { cockpitUrl, code, rawCode };
+  return { cockpitUrl, code };
 }
 
 async function toggleFinding(input: {
@@ -100,7 +99,7 @@ describe("viewer join page", () => {
   });
 
   it("redirects to the viewer page for a valid code", async () => {
-    const { code, rawCode } = await createFreshCase("Code-Check");
+    const { code } = await createFreshCase("Code-Check");
 
     const response = await fetch(`${BASE_URL}/api/viewer`, {
       method: "POST",
@@ -110,13 +109,14 @@ describe("viewer join page", () => {
     });
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location).toBe(`${BASE_URL}/viewer/${rawCode}`);
+    expect(location).toBe(`${BASE_URL}/viewer/${normalizeCode(code)}`);
   });
 });
 
 describe("viewer feed page", () => {
   it("shows a waiting screen before any release", async () => {
-    const { rawCode } = await createFreshCase("Wartebildschirm");
+    const { code } = await createFreshCase("Wartebildschirm");
+    const rawCode = normalizeCode(code);
 
     const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
     expect(response.status).toBe(200);
@@ -126,7 +126,8 @@ describe("viewer feed page", () => {
   });
 
   it("shows released findings in chronological order", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("Reihenfolge Viewer");
+    const { cockpitUrl, code } = await createFreshCase("Reihenfolge Viewer");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -147,7 +148,8 @@ describe("viewer feed page", () => {
   });
 
   it("catches up a late-joining viewer with all released findings", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("Nachzügler");
+    const { cockpitUrl, code } = await createFreshCase("Nachzügler");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -172,7 +174,8 @@ describe("viewer feed page", () => {
   });
 
   it("never shows unreleased findings", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("Unsichtbarkeit");
+    const { cockpitUrl, code } = await createFreshCase("Unsichtbarkeit");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -203,11 +206,34 @@ describe("viewer feed page", () => {
     const response = await fetch(`${BASE_URL}/viewer/ZZZZZZ`);
     expect(response.status).toBe(404);
   });
+
+  it("renders notes for findings that have them", async () => {
+    const { cockpitUrl, code } = await createFreshCase("Notizen-Test");
+    const rawCode = normalizeCode(code);
+    const cockpitFindings = extractFindingsFromCockpit(
+      await getCockpit(cockpitUrl),
+    );
+
+    await toggleFinding({
+      cockpitUrl,
+      findingId: cockpitFindings[0]!.id,
+      intent: "release",
+    });
+
+    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    const viewerFindings = extractViewerFindings(html);
+    expect(viewerFindings).toHaveLength(1);
+    expect(viewerFindings[0]!.name).toBe(cockpitFindings[0]!.name);
+    expect(viewerFindings[0]!.note).toBeTruthy();
+  });
 });
 
 describe("viewer JSON API", () => {
   it("returns released findings as JSON in chronological order", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("JSON Feed");
+    const { cockpitUrl, code } = await createFreshCase("JSON Feed");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -240,7 +266,8 @@ describe("viewer JSON API", () => {
   });
 
   it("hides un-released findings in the JSON feed", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("JSON Unsichtbar");
+    const { cockpitUrl, code } = await createFreshCase("JSON Unsichtbar");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -269,7 +296,8 @@ describe("viewer JSON API", () => {
 
 describe("viewer independence", () => {
   it("several simultaneous viewer sessions on one case see the same feed", async () => {
-    const { cockpitUrl, rawCode } = await createFreshCase("Gleichzeitige Sessions");
+    const { cockpitUrl, code } = await createFreshCase("Gleichzeitige Sessions");
+    const rawCode = normalizeCode(code);
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );

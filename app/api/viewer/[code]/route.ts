@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCaseByCode } from "@/lib/cases";
+import { normalizeCode } from "@/lib/case-code";
 
 type RouteContext = {
   params: Promise<{ code: string }>;
@@ -8,7 +9,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext): Promise<NextResponse> {
   const { code: rawCode } = await context.params;
-  const code = rawCode.replace("-", "").toUpperCase();
+  const code = normalizeCode(rawCode);
 
   const viewerCase = await getCaseByCode(code);
   if (!viewerCase) {

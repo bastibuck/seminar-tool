@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { normalizeCode } from "@/lib/case-code";
 import { getCaseByCode } from "@/lib/cases";
 
 const SEE_OTHER = 303;
@@ -9,7 +10,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const rawCode = String(formData.get("code") ?? "").trim();
   const origin = new URL(request.url).origin;
 
-  const code = rawCode.replace("-", "").toUpperCase();
+  const code = normalizeCode(rawCode);
 
   if (code === "") {
     return NextResponse.redirect(
