@@ -118,6 +118,7 @@ export type ReleasedFinding = {
 };
 
 export type ViewerCase = {
+  caseId: string;
   name: string;
   findings: ReleasedFinding[];
 };
@@ -143,7 +144,7 @@ export async function getCaseByCode(
     order by r.released_at
   `;
 
-  return { name: row.name, findings };
+  return { caseId: row.id, name: row.name, findings };
 }
 
 export type ReleaseIntent = "release" | "unrelease";
