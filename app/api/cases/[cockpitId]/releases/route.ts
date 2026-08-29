@@ -43,6 +43,13 @@ export async function POST(
   if (result === "unknown-case") {
     return redirectToError(origin, "/", "Fall nicht gefunden.");
   }
+  if (result === "ended") {
+    return redirectToError(
+      origin,
+      `/cockpit/${cockpitId}`,
+      "Fall bereits beendet.",
+    );
+  }
   if (result === "unknown-finding") {
     return redirectToError(
       origin,

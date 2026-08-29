@@ -43,6 +43,7 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
         caseId={viewerCase.caseId}
         caseCode={code}
         initialFindings={viewerCase.findings}
+        initialEnded={viewerCase.endedAt !== null}
       />
     </main>
   );

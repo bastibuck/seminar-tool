@@ -16,6 +16,7 @@ export type Finding = {
 export type CaseOverview = {
   name: string;
   code: string;
+  endedAt: Date | null;
   findings: Finding[];
 };
 
@@ -77,15 +78,26 @@ type CaseRow = {
   caseTypeId: string;
   name: string;
   code: string;
+  endedAt: Date | null;
 };
 
 async function getCaseByCockpitId(
   cockpitId: string,
 ): Promise<CaseRow | undefined> {
   const [row] = await sql<
-    { id: string; caseTypeId: string; name: string; code: string }[]
+    {
+      id: string;
+      caseTypeId: string;
+      name: string;
+      code: string;
+      endedAt: Date | null;
+    }[]
   >`
-    select id, case_type_id as "caseTypeId", name, code
+    select id,
+           case_type_id as "caseTypeId",
+           name,
+           code,
+           ended_at as "endedAt"
     from cases
     where cockpit_id = ${cockpitId}
   `;
@@ -107,7 +119,12 @@ export async function getCaseOverview(
     order by f.position
   `;
 
-  return { name: row.name, code: row.code, findings };
+  return {
+    name: row.name,
+    code: row.code,
+    endedAt: row.endedAt,
+    findings,
+  };
 }
 
 export type ReleasedFinding = {
@@ -120,14 +137,15 @@ export type ReleasedFinding = {
 export type ViewerCase = {
   caseId: string;
   name: string;
+  endedAt: Date | null;
   findings: ReleasedFinding[];
 };
 
 export async function getCaseByCode(
   code: string,
 ): Promise<ViewerCase | null> {
-  const rows = await sql<{ id: string; name: string }[]>`
-    select id, name
+  const rows = await sql<{ id: string; name: string; endedAt: Date | null }[]>`
+    select id, name, ended_at as "endedAt"
     from cases
     where code = ${code}
   `;
@@ -144,12 +162,17 @@ export async function getCaseByCode(
     order by r.released_at
   `;
 
-  return { caseId: row.id, name: row.name, findings };
+  return {
+    caseId: row.id,
+    name: row.name,
+    endedAt: row.endedAt,
+    findings,
+  };
 }
 
 export type ReleaseIntent = "release" | "unrelease";
 
-export type ReleaseResult = "ok" | "unknown-case" | "unknown-finding";
+export type ReleaseResult = "ok" | "ended" | "unknown-case" | "unknown-finding";
 
 export async function setFindingReleased(input: {
   cockpitId: string;
@@ -158,6 +181,7 @@ export async function setFindingReleased(input: {
 }): Promise<ReleaseResult> {
   const row = await getCaseByCockpitId(input.cockpitId);
   if (!row) return "unknown-case";
+  if (row.endedAt) return "ended";
 
   const [finding] = await sql<{ id: string }[]>`
     select id
@@ -179,5 +203,18 @@ export async function setFindingReleased(input: {
     `;
   }
 
+  return "ok";
+}
+
+export type EndResult = "ok" | "unknown-case";
+
+export async function endCase(cockpitId: string): Promise<EndResult> {
+  const rows = await sql<{ id: string }[]>`
+    update cases
+    set ended_at = coalesce(ended_at, now())
+    where cockpit_id = ${cockpitId}
+    returning id
+  `;
+  if (rows.length === 0) return "unknown-case";
   return "ok";
 }

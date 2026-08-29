@@ -21,6 +21,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
 
   return NextResponse.json({
     name: viewerCase.name,
+    ended: viewerCase.endedAt !== null,
     findings: viewerCase.findings.map((f) => ({
       id: f.id,
       name: f.name,
