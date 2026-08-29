@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import { ensureRealtimeLive } from "../support/realtime";
 import {
   connectTestDb,
   createCase,
@@ -114,6 +115,7 @@ function subscribeToCaseReleases(
 
 describe("realtime push from cockpit to viewer", () => {
   it("delivers a release event to a subscribed realtime client within ~1 second", async () => {
+    await ensureRealtimeLive();
     const { cockpitUrl, caseId } = await createFreshCase("Realtime Smoke");
     const cockpitFindings = extractFindingsFromCockpit(await getCockpit(cockpitUrl));
     const target = cockpitFindings[2]!;
@@ -140,7 +142,7 @@ describe("realtime push from cockpit to viewer", () => {
     expect(event.new.finding_id).toBe(target.id);
 
     sub.cleanup();
-  });
+  }, 30000);
 
   it("delivers an un-release event that removes the finding", async () => {
     const { cockpitUrl, caseId } = await createFreshCase("Realtime Unrelease");

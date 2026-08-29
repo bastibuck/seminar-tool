@@ -35,6 +35,18 @@ const heldBackBadgeStyle = {
   color: "#57606a",
 } as const;
 
+const endedNoteStyle = {
+  marginTop: "1.5rem",
+  color: "#57606a",
+} as const;
+
+const endButtonStyle = {
+  marginTop: "2rem",
+  padding: "0.6rem 1.2rem",
+  fontSize: "1rem",
+  cursor: "pointer",
+} as const;
+
 const releaseTimeFormat = new Intl.DateTimeFormat("de-DE", {
   hour: "2-digit",
   minute: "2-digit",
@@ -84,21 +96,39 @@ export default async function CockpitPage({
               ) : (
                 <p style={heldBackBadgeStyle}>Zurückgehalten</p>
               )}
-              <form method="post" action={`/api/cases/${id}/releases`}>
-                <input type="hidden" name="findingId" value={finding.id} />
-                <input
-                  type="hidden"
-                  name="intent"
-                  value={finding.releasedAt ? "unrelease" : "release"}
-                />
-                <button type="submit">
-                  {finding.releasedAt ? "Zurückziehen" : "Freigeben"}
-                </button>
-              </form>
+              {!overview.endedAt ? (
+                <form method="post" action={`/api/cases/${id}/releases`}>
+                  <input type="hidden" name="findingId" value={finding.id} />
+                  <input
+                    type="hidden"
+                    name="intent"
+                    value={finding.releasedAt ? "unrelease" : "release"}
+                  />
+                  <button type="submit">
+                    {finding.releasedAt ? "Zurückziehen" : "Freigeben"}
+                  </button>
+                </form>
+              ) : null}
             </li>
           ))}
         </ol>
       </section>
+      {overview.endedAt ? (
+        <p style={endedNoteStyle}>
+          Beendet um{" "}
+          <time dateTime={overview.endedAt.toISOString()}>
+            {releaseTimeFormat.format(overview.endedAt)}
+          </time>{" "}
+          Uhr – es können keine Befunde mehr freigegeben oder zurückgezogen
+          werden.
+        </p>
+      ) : (
+        <form method="get" action={`/cockpit/${id}/end`}>
+          <button type="submit" style={endButtonStyle}>
+            Fall beenden
+          </button>
+        </form>
+      )}
     </main>
   );
 }

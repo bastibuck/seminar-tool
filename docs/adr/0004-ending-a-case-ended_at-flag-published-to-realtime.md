@@ -1,0 +1,7 @@
+# Ending a case: ended_at flag on cases, published to Realtime
+
+Ending a case is a one-way transition: the doctor triggers it from the cockpit behind a confirmation step, and from then on the server rejects all further release/un-release attempts. We model that as a nullable `ended_at` timestamp on `cases` (the case's status is derived: active when `null`, ended otherwise). The release/un-release route reads the flag and answers "Fall bereits beendet." before touching any row; a second end does nothing and keeps the original timestamp (`coalesce`), so the transition is idempotent and irreversible in V1.
+
+For the viewer banner we reuse the existing Realtime publication instead of building a second push path: `cases` is added to `supabase_realtime` and the viewer's channel also subscribes to UPDATEs on `cases`, flipping a client-side "Fall beendet" banner. Ended cases stay fully readable because the feed still derives purely from existing `releases` rows ordered by `released_at`.
+
+We accepted a small widening of the anon exposure: previously only `releases` was subscribed by viewers; publishing `cases` means an anon client could, in principle, observe case inserts/updates including names and join codes. This fits the existing security model (unguessable cockpit UUIDs and short codes are the only access control), and the payload is limited to scheduling metadata. Alternatives rejected: a dedicated end-event table plus trigger (two sources of truth for the same transition), and polling (violates the ~1s live banner requirement).
