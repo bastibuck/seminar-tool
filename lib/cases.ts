@@ -179,31 +179,43 @@ export async function setFindingReleased(input: {
   findingId: string;
   intent: ReleaseIntent;
 }): Promise<ReleaseResult> {
-  const row = await getCaseByCockpitId(input.cockpitId);
-  if (!row) return "unknown-case";
-  if (row.endedAt) return "ended";
-
-  const [finding] = await sql<{ id: string }[]>`
-    select id
-    from findings
-    where id = ${input.findingId} and case_type_id = ${row.caseTypeId}
-  `;
-  if (!finding) return "unknown-finding";
-
-  if (input.intent === "release") {
-    await sql`
-      insert into releases (case_id, finding_id)
-      values (${row.id}, ${finding.id})
-      on conflict (case_id, finding_id) do nothing
+  return sql.begin<ReleaseResult>(async (tx) => {
+    const rows = await tx<
+      { id: string; caseTypeId: string; endedAt: Date | null }[]
+    >`
+      select id,
+             case_type_id as "caseTypeId",
+             ended_at as "endedAt"
+      from cases
+      where cockpit_id = ${input.cockpitId}
+      for update
     `;
-  } else {
-    await sql`
-      delete from releases
-      where case_id = ${row.id} and finding_id = ${finding.id}
-    `;
-  }
+    const row = rows[0];
+    if (!row) return "unknown-case";
+    if (row.endedAt) return "ended";
 
-  return "ok";
+    const [finding] = await tx<{ id: string }[]>`
+      select id
+      from findings
+      where id = ${input.findingId} and case_type_id = ${row.caseTypeId}
+    `;
+    if (!finding) return "unknown-finding";
+
+    if (input.intent === "release") {
+      await tx`
+        insert into releases (case_id, finding_id)
+        values (${row.id}, ${finding.id})
+        on conflict (case_id, finding_id) do nothing
+      `;
+    } else {
+      await tx`
+        delete from releases
+        where case_id = ${row.id} and finding_id = ${finding.id}
+      `;
+    }
+
+    return "ok";
+  });
 }
 
 export type EndResult = "ok" | "unknown-case";

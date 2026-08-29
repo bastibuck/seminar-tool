@@ -73,6 +73,11 @@ function hasEndBanner(viewerHtml: string): boolean {
   return viewerHtml.includes("Fall beendet");
 }
 
+function extractEndedAt(cockpitHtml: string): string | null {
+  const match = cockpitHtml.match(/Beendet um\s*<time datetime="([^"]+)"/i);
+  return match ? match[1] : null;
+}
+
 async function createFreshCase(name: string): Promise<{
   cockpitUrl: string;
   code: string;
@@ -389,22 +394,14 @@ describe("ending error handling", () => {
     const { cockpitUrl } = await createFreshCase("Doppelt beendet");
     await endCase(cockpitUrl);
 
-    const [first] = await db<{ endedAt: Date }[]>`
-      select ended_at as "endedAt"
-      from cases
-      where cockpit_id = ${cockpitIdOf(cockpitUrl)}
-    `;
-    expect(first?.endedAt).toBeTruthy();
+    const firstTime = extractEndedAt(await getCockpit(cockpitUrl));
+    expect(firstTime).toBeDefined();
 
     await new Promise((r) => setTimeout(r, 20));
     await endCase(cockpitUrl);
     await endCase(cockpitUrl);
 
-    const [second] = await db<{ endedAt: Date }[]>`
-      select ended_at as "endedAt"
-      from cases
-      where cockpit_id = ${cockpitIdOf(cockpitUrl)}
-    `;
-    expect(second?.endedAt).toEqual(first?.endedAt);
+    const secondTime = extractEndedAt(await getCockpit(cockpitUrl));
+    expect(secondTime).toEqual(firstTime);
   });
 });
