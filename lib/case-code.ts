@@ -7,7 +7,8 @@ const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 export const CASE_CODE_ALPHABET = DIGITS + LETTERS.join("");
 
-export const CASE_CODE_LENGTH = 6;
+export const CASE_CODE_LENGTH = 8;
+export const CASE_CODE_GROUP = 4;
 
 export type RandomInt = (maxExclusive: number) => number;
 
@@ -31,9 +32,18 @@ export function generateCaseCode(randomInt: RandomInt = defaultRandomInt): strin
 }
 
 export function formatCaseCode(code: string): string {
-  return `${code.slice(0, 3)}-${code.slice(3)}`;
+  if (code.length <= CASE_CODE_GROUP) return code;
+  return `${code.slice(0, CASE_CODE_GROUP)}-${code.slice(CASE_CODE_GROUP)}`;
 }
 
 export function normalizeCode(raw: string): string {
-  return raw.replace("-", "").toUpperCase();
+  return raw.replace(/-/g, "").toUpperCase();
+}
+
+export function formatCodeInput(raw: string): string {
+  const clean = raw
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, CASE_CODE_LENGTH);
+  return formatCaseCode(clean);
 }

@@ -4,7 +4,7 @@ import { expect } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
 
-export const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{3}-[2-9A-HJKMNP-TV-Z]{3}/;
+export const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{4}-[2-9A-HJKMNP-TV-Z]{4}/;
 
 export const TEST_DATABASE_URL =
   process.env.DATABASE_URL ??

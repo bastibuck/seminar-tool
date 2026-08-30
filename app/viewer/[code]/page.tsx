@@ -41,7 +41,7 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
       </p>
       <ViewerRealtime
         caseId={viewerCase.caseId}
-        caseCode={code}
+        caseCode={formatCaseCode(code)}
         initialFindings={viewerCase.findings}
         initialEnded={viewerCase.endedAt !== null}
       />

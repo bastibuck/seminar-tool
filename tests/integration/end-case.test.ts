@@ -1,7 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-import { normalizeCode } from "../../lib/case-code";
 import { BASE_URL } from "../setup/server-address";
 import { ensureRealtimeLive } from "../support/realtime";
 import {
@@ -256,7 +255,7 @@ describe("server-side rejection after end", () => {
     expect(location.startsWith(`${cockpitUrl}?error=`)).toBe(true);
 
     const viewerResponse = await fetch(
-      `${BASE_URL}/viewer/${normalizeCode(code)}`,
+      `${BASE_URL}/viewer/${code}`,
     );
     expect(viewerResponse.status).toBe(200);
     const viewerHtml = await viewerResponse.text();
@@ -276,7 +275,7 @@ describe("banner state exposure", () => {
     });
     await endCase(cockpitUrl);
 
-    const response = await fetch(`${BASE_URL}/api/viewer/${normalizeCode(code)}`);
+    const response = await fetch(`${BASE_URL}/api/viewer/${code}`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ended).toBe(true);
@@ -286,7 +285,7 @@ describe("banner state exposure", () => {
 
   it("reports false for an active case", async () => {
     const { code } = await createFreshCase("JSON Aktiv");
-    const response = await fetch(`${BASE_URL}/api/viewer/${normalizeCode(code)}`);
+    const response = await fetch(`${BASE_URL}/api/viewer/${code}`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ended).toBe(false);
@@ -307,7 +306,7 @@ describe("banner state exposure", () => {
     });
     await endCase(cockpitUrl);
 
-    const response = await fetch(`${BASE_URL}/viewer/${normalizeCode(code)}`);
+    const response = await fetch(`${BASE_URL}/viewer/${code}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(hasEndBanner(html)).toBe(true);
@@ -336,7 +335,7 @@ describe("post-end join behavior", () => {
     }
     await endCase(cockpitUrl);
 
-    const response = await fetch(`${BASE_URL}/viewer/${normalizeCode(code)}`);
+    const response = await fetch(`${BASE_URL}/viewer/${code}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(hasEndBanner(html)).toBe(true);

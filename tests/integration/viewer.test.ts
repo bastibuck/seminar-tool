@@ -86,7 +86,7 @@ describe("viewer join page", () => {
     const response = await fetch(`${BASE_URL}/api/viewer`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ code: "ZZZZZZ" }).toString(),
+      body: new URLSearchParams({ code: "ZZZZZZZZ" }).toString(),
       redirect: "manual",
     });
     expect(response.status).toBe(303);
@@ -109,16 +109,31 @@ describe("viewer join page", () => {
     });
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location).toBe(`${BASE_URL}/viewer/${normalizeCode(code)}`);
+    expect(location).toBe(`${BASE_URL}/viewer/${code}`);
+  });
+
+  it("accepts an 8-character code typed without the dash", async () => {
+    const { code } = await createFreshCase("Ohne Bindestrich");
+    expect(normalizeCode(code)).toHaveLength(8);
+
+    const response = await fetch(`${BASE_URL}/api/viewer`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ code: normalizeCode(code) }).toString(),
+      redirect: "manual",
+    });
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location")!;
+    expect(location).toBe(`${BASE_URL}/viewer/${code}`);
   });
 });
 
 describe("viewer feed page", () => {
   it("shows a waiting screen before any release", async () => {
     const { code } = await createFreshCase("Wartebildschirm");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
 
-    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain("Wartebildschirm");
@@ -127,7 +142,7 @@ describe("viewer feed page", () => {
 
   it("shows released findings in chronological order", async () => {
     const { cockpitUrl, code } = await createFreshCase("Reihenfolge Viewer");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -139,7 +154,7 @@ describe("viewer feed page", () => {
       intent: "release",
     });
 
-    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     const viewerFindings = extractViewerFindings(html);
@@ -149,7 +164,7 @@ describe("viewer feed page", () => {
 
   it("catches up a late-joining viewer with all released findings", async () => {
     const { cockpitUrl, code } = await createFreshCase("Nachzügler");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -163,7 +178,7 @@ describe("viewer feed page", () => {
       });
     }
 
-    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     const viewerFindings = extractViewerFindings(html);
@@ -175,7 +190,7 @@ describe("viewer feed page", () => {
 
   it("never shows unreleased findings", async () => {
     const { cockpitUrl, code } = await createFreshCase("Unsichtbarkeit");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -191,7 +206,7 @@ describe("viewer feed page", () => {
       intent: "release",
     });
 
-    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     const viewerFindings = extractViewerFindings(html);
@@ -203,13 +218,13 @@ describe("viewer feed page", () => {
   });
 
   it("returns 404 for an unknown code", async () => {
-    const response = await fetch(`${BASE_URL}/viewer/ZZZZZZ`);
+    const response = await fetch(`${BASE_URL}/viewer/ZZZZZZZZ`);
     expect(response.status).toBe(404);
   });
 
   it("renders notes for findings that have them", async () => {
     const { cockpitUrl, code } = await createFreshCase("Notizen-Test");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -220,7 +235,7 @@ describe("viewer feed page", () => {
       intent: "release",
     });
 
-    const response = await fetch(`${BASE_URL}/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const html = await response.text();
     const viewerFindings = extractViewerFindings(html);
@@ -233,7 +248,7 @@ describe("viewer feed page", () => {
 describe("viewer JSON API", () => {
   it("returns released findings as JSON in chronological order", async () => {
     const { cockpitUrl, code } = await createFreshCase("JSON Feed");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -249,7 +264,7 @@ describe("viewer JSON API", () => {
       intent: "release",
     });
 
-    const response = await fetch(`${BASE_URL}/api/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/api/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.name).toBe("JSON Feed");
@@ -259,7 +274,7 @@ describe("viewer JSON API", () => {
   });
 
   it("returns 404 for an unknown code", async () => {
-    const response = await fetch(`${BASE_URL}/api/viewer/ZZZZZZ`);
+    const response = await fetch(`${BASE_URL}/api/viewer/ZZZZZZZZ`);
     expect(response.status).toBe(404);
     const body = await response.json();
     expect(body.error).toBeDefined();
@@ -267,7 +282,7 @@ describe("viewer JSON API", () => {
 
   it("hides un-released findings in the JSON feed", async () => {
     const { cockpitUrl, code } = await createFreshCase("JSON Unsichtbar");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -283,7 +298,7 @@ describe("viewer JSON API", () => {
       intent: "release",
     });
 
-    const response = await fetch(`${BASE_URL}/api/viewer/${rawCode}`);
+    const response = await fetch(`${BASE_URL}/api/viewer/${pathCode}`);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.findings).toHaveLength(2);
@@ -297,7 +312,7 @@ describe("viewer JSON API", () => {
 describe("viewer independence", () => {
   it("several simultaneous viewer sessions on one case see the same feed", async () => {
     const { cockpitUrl, code } = await createFreshCase("Gleichzeitige Sessions");
-    const rawCode = normalizeCode(code);
+    const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
     );
@@ -309,9 +324,9 @@ describe("viewer independence", () => {
     });
 
     const [res1, res2, res3] = await Promise.all([
-      fetch(`${BASE_URL}/viewer/${rawCode}`),
-      fetch(`${BASE_URL}/viewer/${rawCode}`),
-      fetch(`${BASE_URL}/api/viewer/${rawCode}`),
+      fetch(`${BASE_URL}/viewer/${pathCode}`),
+      fetch(`${BASE_URL}/viewer/${pathCode}`),
+      fetch(`${BASE_URL}/api/viewer/${pathCode}`),
     ]);
 
     expect(res1.status).toBe(200);
