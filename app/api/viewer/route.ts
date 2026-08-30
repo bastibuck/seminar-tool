@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { normalizeCode } from "@/lib/case-code";
+import { formatCaseCode, normalizeCode } from "@/lib/case-code";
 import { getCaseByCode } from "@/lib/cases";
 
 const SEE_OTHER = 303;
@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   return NextResponse.redirect(
-    new URL(`/viewer/${code}`, origin),
+    new URL(`/viewer/${formatCaseCode(code)}`, origin),
     SEE_OTHER,
   );
 }

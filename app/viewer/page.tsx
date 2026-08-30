@@ -4,6 +4,8 @@ import {
   formatCaseCode,
 } from "@/lib/case-code";
 
+import { CodeInput } from "./code-input";
+
 const pageStyle = {
   fontFamily: "system-ui, sans-serif",
   maxWidth: "32rem",
@@ -59,11 +61,10 @@ export default async function ViewerJoinPage({
         <label htmlFor="code" style={labelStyle}>
           Fallcode
         </label>
-        <input
+        <CodeInput
           id="code"
           name="code"
-          required
-          maxLength={CASE_CODE_LENGTH}
+          maxLength={CASE_CODE_LENGTH + 1}
           placeholder={PLACEHOLDER}
           style={inputStyle}
         />
