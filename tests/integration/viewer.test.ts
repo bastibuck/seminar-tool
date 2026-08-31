@@ -7,6 +7,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  toggleFinding,
 } from "../support/cases";
 
 async function getCockpit(cockpitUrl: string): Promise<string> {
@@ -25,27 +26,6 @@ async function createFreshCase(name: string): Promise<{
   const cockpitUrl = response.headers.get("location")!;
   const code = extractCode(await getCockpit(cockpitUrl));
   return { cockpitUrl, code };
-}
-
-async function toggleFinding(input: {
-  cockpitUrl: string;
-  findingId: string;
-  intent: "release" | "unrelease";
-  note?: string;
-}): Promise<Response> {
-  const cockpitId = input.cockpitUrl.split("/").pop()!;
-  const params: Record<string, string> = {
-    findingId: input.findingId,
-    intent: input.intent,
-  };
-  if (input.note !== undefined) params.note = input.note;
-  const body = new URLSearchParams(params);
-  return fetch(`${BASE_URL}/api/cases/${cockpitId}/releases`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-    redirect: "manual",
-  });
 }
 
 function extractFindingsFromCockpit(cockpitHtml: string): { id: string; name: string }[] {
@@ -269,6 +249,37 @@ describe("viewer feed page", () => {
     const viewerFindings = extractViewerFindings(html);
     expect(viewerFindings).toHaveLength(1);
     expect(viewerFindings[0]!.note).toBeNull();
+  });
+
+  it("accepts a note submitted as multipart/form-data (dialog form path)", async () => {
+    const { cockpitUrl, code } = await createFreshCase("Dialog-Formular");
+    const pathCode = code;
+    const cockpitFindings = extractFindingsFromCockpit(
+      await getCockpit(cockpitUrl),
+    );
+
+    const form = new FormData();
+    form.set("findingId", cockpitFindings[2]!.id);
+    form.set("intent", "release");
+    form.set("note", "Multipart-Notiz");
+
+    const release = await fetch(
+      `${BASE_URL}/api/cases/${cockpitUrl.split("/").pop()}/releases`,
+      {
+        method: "POST",
+        body: form,
+        redirect: "manual",
+      },
+    );
+    expect(release.status).toBe(303);
+
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    const viewerFindings = extractViewerFindings(html);
+    expect(viewerFindings).toHaveLength(1);
+    expect(viewerFindings[0]!.name).toBe(cockpitFindings[2]!.name);
+    expect(viewerFindings[0]!.note).toBe("Multipart-Notiz");
   });
 });
 

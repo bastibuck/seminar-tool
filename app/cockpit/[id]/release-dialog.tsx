@@ -2,16 +2,6 @@
 
 import { useRef, useState } from "react";
 
-const overlayStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  backgroundColor: "rgba(0, 0, 0, 0.4)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-};
-
 const dialogStyle = {
   backgroundColor: "#fff",
   borderRadius: "8px",
@@ -70,19 +60,12 @@ export function ReleaseDialog({
   findingId,
   findingName,
 }: ReleaseDialogProps) {
-  const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   function handleOpen() {
     setNote("");
     dialogRef.current?.showModal();
-    setOpen(true);
-  }
-
-  function handleClose() {
-    dialogRef.current?.close();
-    setOpen(false);
   }
 
   return (
@@ -90,11 +73,7 @@ export function ReleaseDialog({
       <button type="button" onClick={handleOpen}>
         Freigeben
       </button>
-      <dialog
-        ref={dialogRef}
-        style={dialogStyle}
-        onClose={handleClose}
-      >
+      <dialog ref={dialogRef} style={dialogStyle}>
         <h3 style={{ marginTop: 0 }}>Befund freigeben</h3>
         <p>
           <strong>{findingName}</strong>
@@ -123,7 +102,7 @@ export function ReleaseDialog({
             <button
               type="button"
               style={cancelButtonStyle}
-              onClick={handleClose}
+              onClick={() => dialogRef.current?.close()}
             >
               Abbrechen
             </button>

@@ -177,7 +177,7 @@ export async function setFindingReleased(input: {
   cockpitId: string;
   findingId: string;
   intent: ReleaseIntent;
-  note?: string | null;
+  note: string | null;
 }): Promise<ReleaseResult> {
   return sql.begin<ReleaseResult>(async (tx) => {
     const rows = await tx<
@@ -202,10 +202,9 @@ export async function setFindingReleased(input: {
     if (!finding) return "unknown-finding";
 
     if (input.intent === "release") {
-      const note = input.note ?? null;
       await tx`
         insert into releases (case_id, finding_id, note)
-        values (${row.id}, ${finding.id}, ${note})
+        values (${row.id}, ${finding.id}, ${input.note})
         on conflict (case_id, finding_id) do nothing
       `;
     } else {

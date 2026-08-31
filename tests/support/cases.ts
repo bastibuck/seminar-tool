@@ -44,6 +44,27 @@ export function extractCode(cockpitHtml: string): string {
   return match[0];
 }
 
+export async function toggleFinding(input: {
+  cockpitUrl: string;
+  findingId: string;
+  intent: "release" | "unrelease";
+  note?: string;
+}): Promise<Response> {
+  const cockpitId = input.cockpitUrl.split("/").pop()!;
+  const params: Record<string, string> = {
+    findingId: input.findingId,
+    intent: input.intent,
+  };
+  if (input.note !== undefined) params.note = input.note;
+  const body = new URLSearchParams(params);
+  return fetch(`${BASE_URL}/api/cases/${cockpitId}/releases`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+    redirect: "manual",
+  });
+}
+
 export function connectTestDb() {
   return postgres(TEST_DATABASE_URL);
 }
