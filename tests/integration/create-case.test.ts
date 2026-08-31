@@ -33,7 +33,7 @@ describe("cockpit start page", () => {
 });
 
 describe("POST /api/cases", () => {
-  it("redirects to a private cockpit url showing name, checklist, notes and code", async () => {
+  it("redirects to a private cockpit url showing name, checklist and code", async () => {
     const caseTypeId = extractCaseTypeId(await getStartPage());
 
     const response = await createCase({ caseTypeId });
@@ -52,7 +52,6 @@ describe("POST /api/cases", () => {
     for (const finding of SEEDED_FINDING_NAMES) {
       expect(html).toContain(finding);
     }
-    expect(html).toContain("480 ng/l");
     expect(extractCode(html)).toBeDefined();
   });
 

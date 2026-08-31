@@ -78,11 +78,14 @@ async function toggleFinding(input: {
   cockpitUrl: string;
   findingId: string;
   intent: "release" | "unrelease";
+  note?: string;
 }): Promise<Response> {
-  const body = new URLSearchParams({
+  const params: Record<string, string> = {
     findingId: input.findingId,
     intent: input.intent,
-  });
+  };
+  if (input.note !== undefined) params.note = input.note;
+  const body = new URLSearchParams(params);
   return fetch(
     `${BASE_URL}/api/cases/${cockpitIdOf(input.cockpitUrl)}/releases`,
     {

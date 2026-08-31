@@ -21,11 +21,11 @@ The student-facing, read-only surface showing everything released in a case. One
 _Avoid_: view part, view side, student app
 
 **Finding**:
-A predefined item in a case (a name, optionally a free-text note; file attachments come later) that doctors hold back and release at the right moment.
+A predefined item in a case (a name; file attachments come later) that doctors hold back and release at the right moment.
 _Avoid_: data item, entity, file, attachment
 
 **Release**:
-The act of making an item visible to all viewers of a case. The core interaction of the product.
+The act of making a finding visible to all viewers of a case. A release optionally carries a contextual note the doctor types at release time; this note lives on the release, not the finding.
 _Avoid_: publish, share, send
 
 **Un-release**:
