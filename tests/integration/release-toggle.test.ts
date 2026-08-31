@@ -6,6 +6,7 @@ import {
   createCase,
   extractCaseTypeId,
   getStartPage,
+  toggleFinding,
 } from "../support/cases";
 
 type FindingView = {
@@ -72,26 +73,6 @@ function extractFindings(cockpitHtml: string): FindingView[] {
     throw new Error("No findings rendered on the cockpit page");
   }
   return findings;
-}
-
-async function toggleFinding(input: {
-  cockpitUrl: string;
-  findingId: string;
-  intent: "release" | "unrelease";
-}): Promise<Response> {
-  const body = new URLSearchParams({
-    findingId: input.findingId,
-    intent: input.intent,
-  });
-  return fetch(
-    `${BASE_URL}/api/cases/${cockpitIdOf(input.cockpitUrl)}/releases`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-      redirect: "manual",
-    },
-  );
 }
 
 async function createCaseOfType(

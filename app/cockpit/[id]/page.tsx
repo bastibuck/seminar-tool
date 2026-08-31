@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { formatCaseCode } from "@/lib/case-code";
 import { getCaseOverview } from "@/lib/cases";
 
+import { ReleaseDialog } from "./release-dialog";
+
 export const dynamic = "force-dynamic";
 
 type CockpitPageProps = {
@@ -84,7 +86,6 @@ export default async function CockpitPage({
           {overview.findings.map((finding) => (
             <li key={finding.id} data-finding-id={finding.id}>
               <strong>{finding.name}</strong>
-              {finding.note ? <p>{finding.note}</p> : null}
               {finding.releasedAt ? (
                 <p style={releasedBadgeStyle}>
                   Freigegeben um{" "}
@@ -97,17 +98,19 @@ export default async function CockpitPage({
                 <p style={heldBackBadgeStyle}>Zurückgehalten</p>
               )}
               {!overview.endedAt ? (
-                <form method="post" action={`/api/cases/${id}/releases`}>
-                  <input type="hidden" name="findingId" value={finding.id} />
-                  <input
-                    type="hidden"
-                    name="intent"
-                    value={finding.releasedAt ? "unrelease" : "release"}
+                finding.releasedAt ? (
+                  <form method="post" action={`/api/cases/${id}/releases`}>
+                    <input type="hidden" name="findingId" value={finding.id} />
+                    <input type="hidden" name="intent" value="unrelease" />
+                    <button type="submit">Zurückziehen</button>
+                  </form>
+                ) : (
+                  <ReleaseDialog
+                    cockpitId={id}
+                    findingId={finding.id}
+                    findingName={finding.name}
                   />
-                  <button type="submit">
-                    {finding.releasedAt ? "Zurückziehen" : "Freigeben"}
-                  </button>
-                </form>
+                )
               ) : null}
             </li>
           ))}

@@ -27,6 +27,7 @@ export async function POST(
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
   const intentValue = String(formData.get("intent") ?? "").trim();
+  const noteValue = String(formData.get("note") ?? "").trim() || null;
   const origin = new URL(request.url).origin;
 
   if (intentValue !== "release" && intentValue !== "unrelease") {
@@ -38,6 +39,7 @@ export async function POST(
     cockpitId,
     findingId,
     intent,
+    note: intent === "release" ? noteValue : null,
   });
 
   if (result === "unknown-case") {

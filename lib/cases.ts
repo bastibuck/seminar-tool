@@ -9,7 +9,6 @@ export type CaseType = {
 export type Finding = {
   id: string;
   name: string;
-  note: string | null;
   releasedAt: Date | null;
 };
 
@@ -111,7 +110,7 @@ export async function getCaseOverview(
   if (!row) return null;
 
   const findings = await sql<Finding[]>`
-    select f.id, f.name, f.note, r.released_at as "releasedAt"
+    select f.id, f.name, r.released_at as "releasedAt"
     from findings f
     left join releases r
       on r.finding_id = f.id and r.case_id = ${row.id}
@@ -153,7 +152,7 @@ export async function getCaseByCode(
   if (!row) return null;
 
   const findings = await sql<ReleasedFinding[]>`
-    select f.id, f.name, f.note, r.released_at as "releasedAt"
+    select f.id, f.name, r.note, r.released_at as "releasedAt"
     from findings f
     join releases r on r.finding_id = f.id and r.case_id = ${row.id}
     where f.case_type_id = (
@@ -178,6 +177,7 @@ export async function setFindingReleased(input: {
   cockpitId: string;
   findingId: string;
   intent: ReleaseIntent;
+  note: string | null;
 }): Promise<ReleaseResult> {
   return sql.begin<ReleaseResult>(async (tx) => {
     const rows = await tx<
@@ -203,8 +203,8 @@ export async function setFindingReleased(input: {
 
     if (input.intent === "release") {
       await tx`
-        insert into releases (case_id, finding_id)
-        values (${row.id}, ${finding.id})
+        insert into releases (case_id, finding_id, note)
+        values (${row.id}, ${finding.id}, ${input.note})
         on conflict (case_id, finding_id) do nothing
       `;
     } else {

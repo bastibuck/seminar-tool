@@ -3,6 +3,7 @@ create table releases (
   case_id uuid not null references cases (id) on delete cascade,
   finding_id uuid not null references findings (id) on delete cascade,
   released_at timestamptz not null default now(),
+  note text,
   unique (case_id, finding_id)
 );
 

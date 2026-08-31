@@ -7,6 +7,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  toggleFinding,
 } from "../support/cases";
 
 async function getCockpit(cockpitUrl: string): Promise<string> {
@@ -27,24 +28,6 @@ async function createFreshCase(name: string): Promise<{
   return { cockpitUrl, code };
 }
 
-async function toggleFinding(input: {
-  cockpitUrl: string;
-  findingId: string;
-  intent: "release" | "unrelease";
-}): Promise<Response> {
-  const cockpitId = input.cockpitUrl.split("/").pop()!;
-  const body = new URLSearchParams({
-    findingId: input.findingId,
-    intent: input.intent,
-  });
-  return fetch(`${BASE_URL}/api/cases/${cockpitId}/releases`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-    redirect: "manual",
-  });
-}
-
 function extractFindingsFromCockpit(cockpitHtml: string): { id: string; name: string }[] {
   const findings: { id: string; name: string }[] = [];
   const rowPattern = /<li data-finding-id="([0-9a-f-]{36})">([\s\S]*?)<\/li>/g;
@@ -61,7 +44,7 @@ function extractViewerFindings(viewerHtml: string): { name: string; note: string
   for (const [, content] of viewerHtml.matchAll(itemPattern)) {
     const name = content.match(/<strong>([^<]*)<\/strong>/)?.[1];
     if (!name) continue;
-    const noteMatch = content.match(/<p>([^<]*)<\/p>/);
+    const noteMatch = content.match(/<p>(?!Freigegeben)([^<]+)<\/p>/);
     const note = noteMatch ? noteMatch[1] : null;
     findings.push({ name, note });
   }
@@ -222,8 +205,33 @@ describe("viewer feed page", () => {
     expect(response.status).toBe(404);
   });
 
-  it("renders notes for findings that have them", async () => {
+  it("renders notes passed at release time", async () => {
     const { cockpitUrl, code } = await createFreshCase("Notizen-Test");
+    const pathCode = code;
+    const cockpitFindings = extractFindingsFromCockpit(
+      await getCockpit(cockpitUrl),
+    );
+
+    await toggleFinding({
+      cockpitUrl,
+      findingId: cockpitFindings[0]!.id,
+      intent: "release",
+      note: "Freitext: Differentialdiagnosen benennen",
+    });
+
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    const viewerFindings = extractViewerFindings(html);
+    expect(viewerFindings).toHaveLength(1);
+    expect(viewerFindings[0]!.name).toBe(cockpitFindings[0]!.name);
+    expect(viewerFindings[0]!.note).toBe(
+      "Freitext: Differentialdiagnosen benennen",
+    );
+  });
+
+  it("omits note when releasing without one", async () => {
+    const { cockpitUrl, code } = await createFreshCase("Ohne Notiz");
     const pathCode = code;
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),
@@ -240,8 +248,38 @@ describe("viewer feed page", () => {
     const html = await response.text();
     const viewerFindings = extractViewerFindings(html);
     expect(viewerFindings).toHaveLength(1);
-    expect(viewerFindings[0]!.name).toBe(cockpitFindings[0]!.name);
-    expect(viewerFindings[0]!.note).toBeTruthy();
+    expect(viewerFindings[0]!.note).toBeNull();
+  });
+
+  it("accepts a note submitted as multipart/form-data (dialog form path)", async () => {
+    const { cockpitUrl, code } = await createFreshCase("Dialog-Formular");
+    const pathCode = code;
+    const cockpitFindings = extractFindingsFromCockpit(
+      await getCockpit(cockpitUrl),
+    );
+
+    const form = new FormData();
+    form.set("findingId", cockpitFindings[2]!.id);
+    form.set("intent", "release");
+    form.set("note", "Multipart-Notiz");
+
+    const release = await fetch(
+      `${BASE_URL}/api/cases/${cockpitUrl.split("/").pop()}/releases`,
+      {
+        method: "POST",
+        body: form,
+        redirect: "manual",
+      },
+    );
+    expect(release.status).toBe(303);
+
+    const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    const viewerFindings = extractViewerFindings(html);
+    expect(viewerFindings).toHaveLength(1);
+    expect(viewerFindings[0]!.name).toBe(cockpitFindings[2]!.name);
+    expect(viewerFindings[0]!.note).toBe("Multipart-Notiz");
   });
 });
 

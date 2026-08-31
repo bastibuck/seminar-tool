@@ -1,0 +1,3 @@
+# Note lives on the release, not the finding
+
+Findings are name-only checklist items. The optional note a doctor may want to attach is typed live in a confirmation dialog at release time and stored on the release record, not on the finding. This keeps findings as pure "what can be shown" definitions, while releases capture "what the viewer actually sees right now" — potentially enriched with contextual detail. Two motivations: (1) notes are contextual — what the doctor wants to say at release time depends on the moment, not on a predefined script; (2) the confirmation dialog doubles as a safety net against accidental one-tap releases.
