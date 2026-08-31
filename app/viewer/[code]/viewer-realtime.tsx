@@ -101,9 +101,8 @@ export function ViewerRealtime({
           table: "cases",
           filter: `id=eq.${caseId}`,
         },
-        (payload) => {
-          const next = payload.new as { ended_at?: string | null };
-          if (next.ended_at) setEnded(true);
+        () => {
+          fetchFindings();
         },
       )
       .subscribe();
