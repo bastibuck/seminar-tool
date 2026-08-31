@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -10,6 +11,11 @@ type FindingView = {
   name: string;
   note: string | null;
   releasedAt: string;
+};
+
+type ViewerQueryData = {
+  ended: boolean;
+  findings: FindingView[];
 };
 
 type ViewerRealtimeProps = {
@@ -48,33 +54,43 @@ const timeFormat = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
 });
 
+function mapFindings(raw: FindingView[]): ReleasedFinding[] {
+  return raw.map((f) => ({
+    id: f.id,
+    name: f.name,
+    note: f.note,
+    releasedAt: new Date(f.releasedAt),
+  }));
+}
+
 export function ViewerRealtime({
   caseId,
   caseCode,
   initialFindings,
   initialEnded,
 }: ViewerRealtimeProps) {
-  const [findings, setFindings] = useState<ReleasedFinding[]>(initialFindings);
-  const [ended, setEnded] = useState(initialEnded);
+  const queryClient = useQueryClient();
+  const queryKey = ["viewer", caseCode] as const;
 
-  const fetchFindings = useCallback(async () => {
-    try {
+  const { data } = useQuery<ViewerQueryData>({
+    queryKey,
+    queryFn: async () => {
       const response = await fetch(`/api/viewer/${caseCode}`);
-      if (!response.ok) return;
-      const data = await response.json();
-      setFindings(
-        data.findings.map((f: FindingView) => ({
-          id: f.id,
-          name: f.name,
-          note: f.note,
-          releasedAt: new Date(f.releasedAt),
-        })),
-      );
-      if (typeof data.ended === "boolean") setEnded(data.ended);
-    } catch {
-      // silently ignore fetch errors
-    }
-  }, [caseCode]);
+      if (!response.ok) return undefined;
+      return response.json();
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    initialData: {
+      ended: initialEnded,
+      findings: initialFindings.map((f) => ({
+        id: f.id,
+        name: f.name,
+        note: f.note,
+        releasedAt: f.releasedAt.toISOString(),
+      })),
+    },
+  });
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -90,7 +106,7 @@ export function ViewerRealtime({
           filter: `case_id=eq.${caseId}`,
         },
         () => {
-          fetchFindings();
+          queryClient.invalidateQueries({ queryKey });
         },
       )
       .on(
@@ -102,7 +118,7 @@ export function ViewerRealtime({
           filter: `id=eq.${caseId}`,
         },
         () => {
-          fetchFindings();
+          queryClient.invalidateQueries({ queryKey });
         },
       )
       .subscribe();
@@ -110,7 +126,10 @@ export function ViewerRealtime({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [caseId, fetchFindings]);
+  }, [caseId, queryClient, queryKey]);
+
+  const findings = data ? mapFindings(data.findings) : [];
+  const ended = data?.ended ?? initialEnded;
 
   return (
     <section aria-label="Freigegebene Befunde">
