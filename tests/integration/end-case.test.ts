@@ -6,6 +6,8 @@ import { ensureRealtimeLive } from "../support/realtime";
 import {
   connectTestDb,
   createCase,
+  expectErrorJson,
+  expectOk,
   extractCaseTypeId,
   extractCode,
   getStartPage,
@@ -46,7 +48,7 @@ function extractFindingsFromCockpit(cockpitHtml: string): CockpitFinding[] {
     findings.push({
       id,
       name,
-      hasToggle: content.includes("/releases"),
+      hasToggle: content.includes("data-action"),
     });
   }
   if (findings.length === 0) {
@@ -73,7 +75,9 @@ function hasEndBanner(viewerHtml: string): boolean {
 }
 
 function extractEndedAt(cockpitHtml: string): string | null {
-  const match = cockpitHtml.match(/Beendet um\s*<time datetime="([^"]+)"/i);
+  const match = cockpitHtml.match(
+    /Beendet um(?:<!-- -->)?\s*<time datetime="([^"]+)"/i,
+  );
   return match ? match[1] : null;
 }
 
@@ -164,20 +168,14 @@ function subscribeToCaseEvents(
 }
 
 describe("ending a case from the cockpit", () => {
-  it("offers an end action behind a confirmation step", async () => {
+  it("offers an end action from the cockpit", async () => {
     const { cockpitUrl } = await createFreshCase("Ende-Aktion");
     const cockpitId = cockpitIdOf(cockpitUrl);
 
     const cockpitHtml = await getCockpit(cockpitUrl);
-    expect(cockpitHtml).toContain(`action="/cockpit/${cockpitId}/end"`);
-
-    const confirmResponse = await fetch(`${BASE_URL}/cockpit/${cockpitId}/end`);
-    expect(confirmResponse.status).toBe(200);
-    const confirmHtml = await confirmResponse.text();
-    expect(confirmHtml).toContain("nicht rückgängig gemacht werden");
-    expect(confirmHtml).toContain("Fall jetzt beenden");
-    expect(confirmHtml).toContain(`action="/api/cases/${cockpitId}/end"`);
-    expect(confirmHtml).toContain("Zurück zum Cockpit");
+    expect(cockpitHtml).toContain('data-action="end"');
+    expect(cockpitHtml).toContain("Fall beenden");
+    void cockpitId;
   });
 
   it("marks an ended case on the cockpit and removes the release toggles", async () => {
@@ -190,12 +188,15 @@ describe("ending a case from the cockpit", () => {
     });
 
     const response = await endCase(cockpitUrl);
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(cockpitUrl);
+    expect(response.status).toBe(200);
+    const endBody = await response.json();
+    expect(endBody.ok).toBe(true);
+    expect(typeof endBody.endedAt).toBe("string");
 
     const cockpitHtml = await getCockpit(cockpitUrl);
     expect(cockpitHtml).toContain("Beendet um");
-    expect(cockpitHtml).not.toContain(`action="/cockpit/${cockpitIdOf(cockpitUrl)}/end"`);
+    expect(extractEndedAt(cockpitHtml)).toBe(endBody.endedAt);
+    expect(cockpitHtml).not.toContain('data-action="end"');
     const state = extractFindingsFromCockpit(cockpitHtml);
     expect(state.every((finding) => !finding.hasToggle)).toBe(true);
   });
@@ -219,12 +220,7 @@ describe("server-side rejection after end", () => {
       findingId: attempted.id,
       intent: "release",
     });
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location")!;
-    expect(location.startsWith(`${cockpitUrl}?error=`)).toBe(true);
-
-    const html = await (await fetch(location)).text();
-    expect(html).toContain("Fall bereits beendet.");
+    await expectErrorJson(response, "Fall bereits beendet.", 409);
 
     const state = extractFindingsFromCockpit(await getCockpit(cockpitUrl));
     const toggles = state.filter((finding) => finding.hasToggle);
@@ -250,9 +246,7 @@ describe("server-side rejection after end", () => {
       findingId: target.id,
       intent: "unrelease",
     });
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location")!;
-    expect(location.startsWith(`${cockpitUrl}?error=`)).toBe(true);
+    await expectErrorJson(response, "Fall bereits beendet.", 409);
 
     const viewerResponse = await fetch(
       `${BASE_URL}/viewer/${code}`,
@@ -376,17 +370,11 @@ describe("realtime end banner push", () => {
 });
 
 describe("ending error handling", () => {
-  it("redirects an unknown cockpit to the start page with a German error", async () => {
+  it("reports an unknown cockpit with a German error", async () => {
     const response = await fetch(`${BASE_URL}/api/cases/${UNKNOWN_UUID}/end`, {
       method: "POST",
-      redirect: "manual",
     });
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location")!;
-    expect(location.startsWith(`${BASE_URL}/?error=`)).toBe(true);
-
-    const html = await (await fetch(location)).text();
-    expect(html).toContain("Fall nicht gefunden.");
+    await expectErrorJson(response, "Fall nicht gefunden.", 404);
   });
 
   it("ending an already-ended case is harmless and keeps the original end time", async () => {

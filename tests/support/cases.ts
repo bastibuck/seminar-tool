@@ -68,3 +68,20 @@ export async function toggleFinding(input: {
 export function connectTestDb() {
   return postgres(TEST_DATABASE_URL);
 }
+
+export async function expectOk(response: Response): Promise<void> {
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBe(true);
+}
+
+export async function expectErrorJson(
+  response: Response,
+  expectedError: string,
+  expectedStatus: number,
+): Promise<void> {
+  expect(response.status).toBe(expectedStatus);
+  const body = await response.json();
+  expect(body.ok).toBe(false);
+  expect(body.error).toBe(expectedError);
+}

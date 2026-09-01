@@ -271,7 +271,9 @@ describe("viewer feed page", () => {
         redirect: "manual",
       },
     );
-    expect(release.status).toBe(303);
+    expect(release.status).toBe(200);
+    const releaseBody = await release.json();
+    expect(releaseBody.ok).toBe(true);
 
     const response = await fetch(`${BASE_URL}/viewer/${pathCode}`);
     expect(response.status).toBe(200);

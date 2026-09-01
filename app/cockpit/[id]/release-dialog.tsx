@@ -50,15 +50,17 @@ const cancelButtonStyle = {
 };
 
 type ReleaseDialogProps = {
-  cockpitId: string;
   findingId: string;
   findingName: string;
+  disabled?: boolean;
+  onRelease: (note: string) => Promise<void>;
 };
 
 export function ReleaseDialog({
-  cockpitId,
   findingId,
   findingName,
+  disabled = false,
+  onRelease,
 }: ReleaseDialogProps) {
   const [note, setNote] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -68,9 +70,15 @@ export function ReleaseDialog({
     dialogRef.current?.showModal();
   }
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    dialogRef.current?.close();
+    await onRelease(note);
+  }
+
   return (
     <>
-      <button type="button" onClick={handleOpen}>
+      <button type="button" onClick={handleOpen} disabled={disabled}>
         Freigeben
       </button>
       <dialog ref={dialogRef} style={dialogStyle}>
@@ -78,12 +86,7 @@ export function ReleaseDialog({
         <p>
           <strong>{findingName}</strong>
         </p>
-        <form
-          method="post"
-          action={`/api/cases/${cockpitId}/releases`}
-        >
-          <input type="hidden" name="findingId" value={findingId} />
-          <input type="hidden" name="intent" value="release" />
+        <form onSubmit={handleSubmit}>
           <label
             htmlFor={`note-${findingId}`}
             style={{ display: "block", marginBottom: "0.25rem" }}

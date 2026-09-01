@@ -171,7 +171,11 @@ export async function getCaseByCode(
 
 export type ReleaseIntent = "release" | "unrelease";
 
-export type ReleaseResult = "ok" | "ended" | "unknown-case" | "unknown-finding";
+export type ReleaseResult =
+  | { status: "ok"; releasedAt: Date | null }
+  | { status: "ended" }
+  | { status: "unknown-case" }
+  | { status: "unknown-finding" };
 
 export async function setFindingReleased(input: {
   cockpitId: string;
@@ -191,15 +195,15 @@ export async function setFindingReleased(input: {
       for update
     `;
     const row = rows[0];
-    if (!row) return "unknown-case";
-    if (row.endedAt) return "ended";
+    if (!row) return { status: "unknown-case" };
+    if (row.endedAt) return { status: "ended" };
 
     const [finding] = await tx<{ id: string }[]>`
       select id
       from findings
       where id = ${input.findingId} and case_type_id = ${row.caseTypeId}
     `;
-    if (!finding) return "unknown-finding";
+    if (!finding) return { status: "unknown-finding" };
 
     if (input.intent === "release") {
       await tx`
@@ -207,26 +211,34 @@ export async function setFindingReleased(input: {
         values (${row.id}, ${finding.id}, ${input.note})
         on conflict (case_id, finding_id) do nothing
       `;
+      const [released] = await tx<{ releasedAt: Date | null }[]>`
+        select released_at as "releasedAt"
+        from releases
+        where case_id = ${row.id} and finding_id = ${finding.id}
+      `;
+      return { status: "ok", releasedAt: released?.releasedAt ?? null };
     } else {
       await tx`
         delete from releases
         where case_id = ${row.id} and finding_id = ${finding.id}
       `;
+      return { status: "ok", releasedAt: null };
     }
-
-    return "ok";
   });
 }
 
-export type EndResult = "ok" | "unknown-case";
+export type EndResult =
+  | { status: "ok"; endedAt: Date }
+  | { status: "unknown-case" };
 
 export async function endCase(cockpitId: string): Promise<EndResult> {
-  const rows = await sql<{ id: string }[]>`
+  const rows = await sql<{ id: string; endedAt: Date }[]>`
     update cases
     set ended_at = coalesce(ended_at, now())
     where cockpit_id = ${cockpitId}
-    returning id
+    returning id, ended_at as "endedAt"
   `;
-  if (rows.length === 0) return "unknown-case";
-  return "ok";
+  const row = rows[0];
+  if (!row) return { status: "unknown-case" };
+  return { status: "ok", endedAt: row.endedAt };
 }
