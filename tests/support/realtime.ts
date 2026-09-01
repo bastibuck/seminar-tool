@@ -8,12 +8,7 @@ import {
   getStartPage,
 } from "./cases";
 import { BASE_URL } from "../setup/server-address";
-
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
-const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+import { getSupabaseAnonKey, getSupabaseUrl } from "../../lib/supabase-config";
 
 export const REALTIME_PING_TIMEOUT_MS = 1500;
 export const REALTIME_PING_ATTEMPTS = 20;
@@ -58,7 +53,10 @@ export async function ensureRealtimeLive(): Promise<void> {
   const findingId = findingRows[0]!.id;
   await db.end();
 
-  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase: SupabaseClient = createClient(
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
+  );
   const events: unknown[] = [];
 
   let resolveSubscribed!: () => void;
