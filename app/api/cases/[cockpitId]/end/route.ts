@@ -14,12 +14,15 @@ export async function POST(
 
   const result = await endCase(cockpitId);
 
-  if (result === "unknown-case") {
+  if (result.status === "unknown-case") {
     return NextResponse.json(
       { ok: false, error: "Fall nicht gefunden." },
       { status: 404 },
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    endedAt: result.endedAt.toISOString(),
+  });
 }

@@ -6,6 +6,8 @@ import { ensureRealtimeLive } from "../support/realtime";
 import {
   connectTestDb,
   createCase,
+  expectErrorJson,
+  expectOk,
   extractCaseTypeId,
   extractCode,
   getStartPage,
@@ -18,12 +20,6 @@ const SUPABASE_ANON_KEY =
   "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
 
 const db = connectTestDb();
-
-async function expectOk(response: Response): Promise<void> {
-  expect(response.status).toBe(200);
-  const body = await response.json();
-  expect(body.ok).toBe(true);
-}
 
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
 
@@ -79,7 +75,9 @@ function hasEndBanner(viewerHtml: string): boolean {
 }
 
 function extractEndedAt(cockpitHtml: string): string | null {
-  const match = cockpitHtml.match(/Beendet um\s*<time datetime="([^"]+)"/i);
+  const match = cockpitHtml.match(
+    /Beendet um(?:<!-- -->)?\s*<time datetime="([^"]+)"/i,
+  );
   return match ? match[1] : null;
 }
 
@@ -190,10 +188,14 @@ describe("ending a case from the cockpit", () => {
     });
 
     const response = await endCase(cockpitUrl);
-    await expectOk(response);
+    expect(response.status).toBe(200);
+    const endBody = await response.json();
+    expect(endBody.ok).toBe(true);
+    expect(typeof endBody.endedAt).toBe("string");
 
     const cockpitHtml = await getCockpit(cockpitUrl);
     expect(cockpitHtml).toContain("Beendet um");
+    expect(extractEndedAt(cockpitHtml)).toBe(endBody.endedAt);
     expect(cockpitHtml).not.toContain('data-action="end"');
     const state = extractFindingsFromCockpit(cockpitHtml);
     expect(state.every((finding) => !finding.hasToggle)).toBe(true);
@@ -218,10 +220,7 @@ describe("server-side rejection after end", () => {
       findingId: attempted.id,
       intent: "release",
     });
-    expect(response.status).toBe(409);
-    const body = await response.json();
-    expect(body.ok).toBe(false);
-    expect(body.error).toBe("Fall bereits beendet.");
+    await expectErrorJson(response, "Fall bereits beendet.", 409);
 
     const state = extractFindingsFromCockpit(await getCockpit(cockpitUrl));
     const toggles = state.filter((finding) => finding.hasToggle);
@@ -247,10 +246,7 @@ describe("server-side rejection after end", () => {
       findingId: target.id,
       intent: "unrelease",
     });
-    expect(response.status).toBe(409);
-    const body = await response.json();
-    expect(body.ok).toBe(false);
-    expect(body.error).toBe("Fall bereits beendet.");
+    await expectErrorJson(response, "Fall bereits beendet.", 409);
 
     const viewerResponse = await fetch(
       `${BASE_URL}/viewer/${code}`,
@@ -378,10 +374,7 @@ describe("ending error handling", () => {
     const response = await fetch(`${BASE_URL}/api/cases/${UNKNOWN_UUID}/end`, {
       method: "POST",
     });
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body.ok).toBe(false);
-    expect(body.error).toBe("Fall nicht gefunden.");
+    await expectErrorJson(response, "Fall nicht gefunden.", 404);
   });
 
   it("ending an already-ended case is harmless and keeps the original end time", async () => {

@@ -32,15 +32,18 @@ export async function POST(
     note: intent === "release" ? noteValue : null,
   });
 
-  if (result === "unknown-case") {
+  if (result.status === "unknown-case") {
     return jsonError("Fall nicht gefunden.", 404);
   }
-  if (result === "ended") {
+  if (result.status === "ended") {
     return jsonError("Fall bereits beendet.", 409);
   }
-  if (result === "unknown-finding") {
+  if (result.status === "unknown-finding") {
     return jsonError("Befund nicht gefunden.", 404);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    releasedAt: result.releasedAt ? result.releasedAt.toISOString() : null,
+  });
 }

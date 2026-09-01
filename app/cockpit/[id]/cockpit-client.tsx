@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ReleaseDialog } from "./release-dialog";
 
@@ -100,7 +100,7 @@ export function CockpitClient({
   const [error, setError] = useState<string | null>(null);
   const [loadingFindingId, setLoadingFindingId] = useState<string | null>(null);
   const [loadingEnd, setLoadingEnd] = useState(false);
-  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const endDialogRef = useRef<HTMLDialogElement>(null);
 
   function setFindingReleased(findingId: string, releasedAt: string | null) {
     setFindings((prev) =>
@@ -135,17 +135,22 @@ export function CockpitClient({
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: body.toString(),
       });
-      if (!response.ok) {
-        let message = "Aktion fehlgeschlagen.";
-        try {
-          const data = await response.json();
-          if (data && typeof data.error === "string") message = data.error;
-        } catch {}
-        if (response.status === 409) setEndedAt(new Date().toISOString());
-        setFindings(previous);
-        setError(message);
+      if (response.ok) {
+        const data = await response.json();
+        setFindingReleased(
+          findingId,
+          typeof data.releasedAt === "string" ? data.releasedAt : optimisticReleasedAt,
+        );
         return;
       }
+      let message = "Aktion fehlgeschlagen.";
+      try {
+        const data = await response.json();
+        if (data && typeof data.error === "string") message = data.error;
+      } catch {}
+      if (response.status === 409) setEndedAt(new Date().toISOString());
+      setFindings(previous);
+      setError(message);
     } catch {
       setFindings(previous);
       setError("Aktion fehlgeschlagen. Bitte erneut versuchen.");
@@ -157,7 +162,7 @@ export function CockpitClient({
   async function confirmEnd() {
     if (loadingEnd) return;
     const previousEndedAt = endedAt;
-    setEndConfirmOpen(false);
+    closeEndDialog();
     setError(null);
     setEndedAt(new Date().toISOString());
     setLoadingEnd(true);
@@ -166,22 +171,32 @@ export function CockpitClient({
       const response = await fetch(`/api/cases/${cockpitId}/end`, {
         method: "POST",
       });
-      if (!response.ok) {
-        let message = "Aktion fehlgeschlagen.";
-        try {
-          const data = await response.json();
-          if (data && typeof data.error === "string") message = data.error;
-        } catch {}
-        setEndedAt(previousEndedAt);
-        setError(message);
+      if (response.ok) {
+        const data = await response.json();
+        if (typeof data.endedAt === "string") setEndedAt(data.endedAt);
         return;
       }
+      let message = "Aktion fehlgeschlagen.";
+      try {
+        const data = await response.json();
+        if (data && typeof data.error === "string") message = data.error;
+      } catch {}
+      setEndedAt(previousEndedAt);
+      setError(message);
     } catch {
       setEndedAt(previousEndedAt);
       setError("Aktion fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
       setLoadingEnd(false);
     }
+  }
+
+  function openEndDialog() {
+    endDialogRef.current?.showModal();
+  }
+
+  function closeEndDialog() {
+    endDialogRef.current?.close();
   }
 
   return (
@@ -244,16 +259,12 @@ export function CockpitClient({
           type="button"
           data-action="end"
           style={endButtonStyle}
-          onClick={() => setEndConfirmOpen(true)}
+          onClick={openEndDialog}
         >
           Fall beenden
         </button>
       )}
-      <dialog
-        open={endConfirmOpen}
-        style={dialogStyle}
-        onClose={() => setEndConfirmOpen(false)}
-      >
+      <dialog ref={endDialogRef} style={dialogStyle}>
         <h3 style={{ marginTop: 0 }}>Fall beenden</h3>
         <p>
           Möchtest du den Fall jetzt beenden? Das Beenden ist endgültig und kann
@@ -268,7 +279,7 @@ export function CockpitClient({
           <button
             type="button"
             style={cancelButtonStyle}
-            onClick={() => setEndConfirmOpen(false)}
+            onClick={closeEndDialog}
           >
             Abbrechen
           </button>
