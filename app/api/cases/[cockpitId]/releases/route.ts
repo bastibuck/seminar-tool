@@ -2,21 +2,12 @@ import { NextResponse } from "next/server";
 
 import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
 
-const SEE_OTHER = 303;
-
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
 };
 
-function redirectToError(
-  origin: string,
-  path: string,
-  message: string,
-): NextResponse {
-  return NextResponse.redirect(
-    new URL(`${path}?error=${encodeURIComponent(message)}`, origin),
-    SEE_OTHER,
-  );
+function jsonError(message: string, status: number): NextResponse {
+  return NextResponse.json({ ok: false, error: message }, { status });
 }
 
 export async function POST(
@@ -28,10 +19,9 @@ export async function POST(
   const findingId = String(formData.get("findingId") ?? "").trim();
   const intentValue = String(formData.get("intent") ?? "").trim();
   const noteValue = String(formData.get("note") ?? "").trim() || null;
-  const origin = new URL(request.url).origin;
 
   if (intentValue !== "release" && intentValue !== "unrelease") {
-    return redirectToError(origin, `/cockpit/${cockpitId}`, "Ungültige Aktion.");
+    return jsonError("Ungültige Aktion.", 400);
   }
   const intent: ReleaseIntent = intentValue;
 
@@ -43,25 +33,14 @@ export async function POST(
   });
 
   if (result === "unknown-case") {
-    return redirectToError(origin, "/", "Fall nicht gefunden.");
+    return jsonError("Fall nicht gefunden.", 404);
   }
   if (result === "ended") {
-    return redirectToError(
-      origin,
-      `/cockpit/${cockpitId}`,
-      "Fall bereits beendet.",
-    );
+    return jsonError("Fall bereits beendet.", 409);
   }
   if (result === "unknown-finding") {
-    return redirectToError(
-      origin,
-      `/cockpit/${cockpitId}`,
-      "Befund nicht gefunden.",
-    );
+    return jsonError("Befund nicht gefunden.", 404);
   }
 
-  return NextResponse.redirect(
-    new URL(`/cockpit/${cockpitId}`, origin),
-    SEE_OTHER,
-  );
+  return NextResponse.json({ ok: true });
 }

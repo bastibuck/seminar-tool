@@ -38,6 +38,12 @@ async function hasAnyRelease(cockpitId: string): Promise<boolean> {
 
 const db = connectTestDb();
 
+async function expectOk(response: Response): Promise<void> {
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBe(true);
+}
+
 afterAll(async () => {
   await db`delete from case_types where id = ${FOREIGN_TYPE_ID}`;
   await db.end();
@@ -106,8 +112,7 @@ describe("release toggle lifecycle", () => {
       findingId: target.id,
       intent: "release",
     });
-    expect(releaseResponse.status).toBe(303);
-    expect(releaseResponse.headers.get("location")).toBe(cockpitUrl);
+    await expectOk(releaseResponse);
 
     const findings = extractFindings(await getCockpit(cockpitUrl));
     expect(findings.find((finding) => finding.id === target.id)?.released).toBe(
@@ -126,14 +131,13 @@ describe("release toggle lifecycle", () => {
       findingId: target.id,
       intent: "release",
     });
-    expect(released.status).toBe(303);
+    await expectOk(released);
     const unreleased = await toggleFinding({
       cockpitUrl,
       findingId: target.id,
       intent: "unrelease",
     });
-    expect(unreleased.status).toBe(303);
-    expect(unreleased.headers.get("location")).toBe(cockpitUrl);
+    await expectOk(unreleased);
 
     const findings = extractFindings(await getCockpit(cockpitUrl));
     expect(findings.every((finding) => !finding.released)).toBe(true);
@@ -154,7 +158,7 @@ describe("chronological release order", () => {
         findingId: finding.id,
         intent: "release",
       });
-      expect(response.status).toBe(303);
+      await expectOk(response);
     }
 
     const releaseTimeById = new Map(
@@ -260,19 +264,17 @@ describe("cross-case independence", () => {
 });
 
 describe("POST /api/cases/[cockpitId]/releases error handling", () => {
-  it("redirects an unknown cockpit to the start page with a German error", async () => {
+  it("reports an unknown cockpit with a German error", async () => {
     const response = await toggleFinding({
       cockpitUrl: `${BASE_URL}/cockpit/${UNKNOWN_UUID}`,
       findingId: UNKNOWN_UUID,
       intent: "release",
     });
 
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location")!;
-    expect(location.startsWith(`${BASE_URL}/?error=`)).toBe(true);
-
-    const html = await (await fetch(location)).text();
-    expect(html).toContain("Fall nicht gefunden.");
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe("Fall nicht gefunden.");
   });
 
   it("rejects a finding of another case type without changing anything", async () => {
@@ -295,12 +297,10 @@ describe("POST /api/cases/[cockpitId]/releases error handling", () => {
       findingId: FOREIGN_FINDING_ID,
       intent: "release",
     });
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location")!;
-    expect(location.startsWith(`${urlA}?error=`)).toBe(true);
-
-    const html = await (await fetch(location)).text();
-    expect(html).toContain("Befund nicht gefunden.");
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe("Befund nicht gefunden.");
 
     const stateA = extractFindings(await getCockpit(urlA));
     expect(stateA.every((finding) => !finding.released)).toBe(true);
