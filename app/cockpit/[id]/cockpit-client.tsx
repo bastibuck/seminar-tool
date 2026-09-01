@@ -1,5 +1,6 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 import { ReleaseDialog } from "./release-dialog";
@@ -10,10 +11,13 @@ type FindingState = {
   releasedAt: string | null;
 };
 
-type CockpitClientProps = {
-  cockpitId: string;
-  findings: FindingState[];
+type CockpitQueryData = {
   endedAt: string | null;
+  findings: FindingState[];
+};
+
+type CockpitClientProps = CockpitQueryData & {
+  cockpitId: string;
 };
 
 const releaseTimeFormat = new Intl.DateTimeFormat("de-DE", {
@@ -90,105 +94,133 @@ function formatTime(iso: string): string {
   return releaseTimeFormat.format(new Date(iso));
 }
 
+async function postFormAction(body: URLSearchParams, url: string): Promise<void> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!response.ok) {
+    let message = "Aktion fehlgeschlagen.";
+    try {
+      const data = await response.json();
+      if (data && typeof data.error === "string") message = data.error;
+    } catch {}
+    throw new Error(message);
+  }
+}
+
+type ReleaseVariables = {
+  findingId: string;
+  intent: "release" | "unrelease";
+  note: string;
+};
+
 export function CockpitClient({
   cockpitId,
   findings: initialFindings,
   endedAt: initialEndedAt,
 }: CockpitClientProps) {
-  const [findings, setFindings] = useState<FindingState[]>(initialFindings);
-  const [endedAt, setEndedAt] = useState<string | null>(initialEndedAt);
+  const queryClient = useQueryClient();
+  const queryKey = ["cockpit", cockpitId] as const;
   const [error, setError] = useState<string | null>(null);
-  const [loadingFindingId, setLoadingFindingId] = useState<string | null>(null);
-  const [loadingEnd, setLoadingEnd] = useState(false);
   const endDialogRef = useRef<HTMLDialogElement>(null);
 
-  function setFindingReleased(findingId: string, releasedAt: string | null) {
-    setFindings((prev) =>
-      prev.map((finding) =>
-        finding.id === findingId ? { ...finding, releasedAt } : finding,
+  const { data } = useQuery<CockpitQueryData>({
+    queryKey,
+    queryFn: async () => {
+      const response = await fetch(`/api/cases/${cockpitId}`);
+      if (!response.ok) throw new Error("Fall konnte nicht geladen werden.");
+      return response.json();
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    initialData: {
+      endedAt: initialEndedAt,
+      findings: initialFindings,
+    },
+  });
+
+  const releaseMutation = useMutation({
+    mutationFn: ({ findingId, intent, note }: ReleaseVariables) =>
+      postFormAction(
+        new URLSearchParams({
+          findingId,
+          intent,
+          ...(intent === "release" && note ? { note } : {}),
+        }),
+        `/api/cases/${cockpitId}/releases`,
       ),
-    );
-  }
+    onMutate: async ({ findingId, intent }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<CockpitQueryData>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<CockpitQueryData>(queryKey, {
+          ...previous,
+          findings: previous.findings.map((finding) =>
+            finding.id === findingId
+              ? {
+                  ...finding,
+                  releasedAt:
+                    intent === "release" ? new Date().toISOString() : null,
+                }
+              : finding,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (mutError, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
+      setError(mutError.message);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const endMutation = useMutation({
+    mutationFn: () => postFormAction(new URLSearchParams(), `/api/cases/${cockpitId}/end`),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<CockpitQueryData>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<CockpitQueryData>(queryKey, {
+          ...previous,
+          endedAt: new Date().toISOString(),
+        });
+      }
+      return { previous };
+    },
+    onError: (mutError, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
+      setError(mutError.message);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const findings = data?.findings ?? initialFindings;
+  const endedAt = data?.endedAt ?? initialEndedAt;
+  const pendingFindingId = releaseMutation.isPending
+    ? (releaseMutation.variables?.findingId ?? null)
+    : null;
 
   async function toggleRelease(findingId: string, note: string) {
+    if (releaseMutation.isPending || endedAt) return;
     const current = findings.find((finding) => finding.id === findingId);
-    if (!current || loadingFindingId || endedAt) return;
-
-    const previous = findings;
-    const optimisticReleasedAt = current.releasedAt
-      ? null
-      : new Date().toISOString();
-
+    if (!current) return;
     setError(null);
-    setFindingReleased(findingId, optimisticReleasedAt);
-    setLoadingFindingId(findingId);
-
-    const body = new URLSearchParams({
+    releaseMutation.mutate({
       findingId,
       intent: current.releasedAt ? "unrelease" : "release",
+      note,
     });
-    if (current.releasedAt === null && note) body.set("note", note);
-
-    try {
-      const response = await fetch(`/api/cases/${cockpitId}/releases`, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFindingReleased(
-          findingId,
-          typeof data.releasedAt === "string" ? data.releasedAt : optimisticReleasedAt,
-        );
-        return;
-      }
-      let message = "Aktion fehlgeschlagen.";
-      try {
-        const data = await response.json();
-        if (data && typeof data.error === "string") message = data.error;
-      } catch {}
-      if (response.status === 409) setEndedAt(new Date().toISOString());
-      setFindings(previous);
-      setError(message);
-    } catch {
-      setFindings(previous);
-      setError("Aktion fehlgeschlagen. Bitte erneut versuchen.");
-    } finally {
-      setLoadingFindingId(null);
-    }
-  }
-
-  async function confirmEnd() {
-    if (loadingEnd) return;
-    const previousEndedAt = endedAt;
-    closeEndDialog();
-    setError(null);
-    setEndedAt(new Date().toISOString());
-    setLoadingEnd(true);
-
-    try {
-      const response = await fetch(`/api/cases/${cockpitId}/end`, {
-        method: "POST",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (typeof data.endedAt === "string") setEndedAt(data.endedAt);
-        return;
-      }
-      let message = "Aktion fehlgeschlagen.";
-      try {
-        const data = await response.json();
-        if (data && typeof data.error === "string") message = data.error;
-      } catch {}
-      setEndedAt(previousEndedAt);
-      setError(message);
-    } catch {
-      setEndedAt(previousEndedAt);
-      setError("Aktion fehlgeschlagen. Bitte erneut versuchen.");
-    } finally {
-      setLoadingEnd(false);
-    }
   }
 
   function openEndDialog() {
@@ -197,6 +229,13 @@ export function CockpitClient({
 
   function closeEndDialog() {
     endDialogRef.current?.close();
+  }
+
+  function confirmEnd() {
+    if (endMutation.isPending || endedAt) return;
+    closeEndDialog();
+    setError(null);
+    endMutation.mutate();
   }
 
   return (
@@ -228,10 +267,10 @@ export function CockpitClient({
                   <button
                     type="button"
                     data-action="unrelease"
-                    disabled={loadingFindingId === finding.id}
+                    disabled={pendingFindingId === finding.id}
                     onClick={() => toggleRelease(finding.id, "")}
                   >
-                    {loadingFindingId === finding.id
+                    {pendingFindingId === finding.id
                       ? "Wird zurückgezogen…"
                       : "Zurückziehen"}
                   </button>
@@ -239,7 +278,7 @@ export function CockpitClient({
                   <ReleaseDialog
                     findingId={finding.id}
                     findingName={finding.name}
-                    disabled={loadingFindingId === finding.id}
+                    disabled={pendingFindingId === finding.id}
                     onRelease={(note) => toggleRelease(finding.id, note)}
                   />
                 )
@@ -286,10 +325,10 @@ export function CockpitClient({
           <button
             type="button"
             style={confirmEndButtonStyle}
-            disabled={loadingEnd}
+            disabled={endMutation.isPending}
             onClick={confirmEnd}
           >
-            {loadingEnd ? "Wird beendet…" : "Fall jetzt beenden"}
+            {endMutation.isPending ? "Wird beendet…" : "Fall jetzt beenden"}
           </button>
         </div>
       </dialog>

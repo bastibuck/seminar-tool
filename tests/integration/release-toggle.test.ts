@@ -151,6 +151,60 @@ describe("release toggle lifecycle", () => {
   });
 });
 
+describe("GET /api/cases/[cockpitId] overview", () => {
+  async function getOverview(cockpitUrl: string): Promise<{
+    ok: boolean;
+    endedAt: string | null;
+    findings: { id: string; name: string; releasedAt: string | null }[];
+  }> {
+    const response = await fetch(
+      `${BASE_URL}/api/cases/${cockpitIdOf(cockpitUrl)}`,
+    );
+    expect(response.status).toBe(200);
+    return response.json();
+  }
+
+  it("returns the full finding list, all held back on a fresh case", async () => {
+    const { cockpitUrl } = await createFreshCase("Übersicht");
+    const overview = await getOverview(cockpitUrl);
+    expect(overview.ok).toBe(true);
+    expect(overview.endedAt).toBeNull();
+    expect(overview.findings.length).toBeGreaterThan(1);
+    expect(overview.findings.every((finding) => finding.releasedAt === null)).toBe(
+      true,
+    );
+  });
+
+  it("reflects a release back on the next fetch", async () => {
+    const { cockpitUrl } = await createFreshCase("Übersicht Freigabe");
+    const target = (await getOverview(cockpitUrl)).findings[2]!;
+
+    await toggleFinding({
+      cockpitUrl,
+      findingId: target.id,
+      intent: "release",
+    });
+
+    const overview = await getOverview(cockpitUrl);
+    expect(overview.findings.find((f) => f.id === target.id)?.releasedAt).toEqual(
+      expect.any(String),
+    );
+    expect(
+      overview.findings.filter((finding) => finding.releasedAt !== null),
+    ).toHaveLength(1);
+  });
+
+  it("reports 404 for an unknown cockpit", async () => {
+    const response = await fetch(
+      `${BASE_URL}/api/cases/${UNKNOWN_UUID}`,
+    );
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.error).toBe("Fall nicht gefunden.");
+  });
+});
+
+
 describe("chronological release order", () => {
   it("establishes deterministic chronological order across several releases", async () => {
     const { cockpitUrl } = await createFreshCase("Reihenfolge");
