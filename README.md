@@ -18,6 +18,15 @@ npm run db:start     # start the local Supabase stack (Postgres on :54322)
 npm run dev          # start the app at http://localhost:3000
 ```
 
+### Environment variables
+
+The Supabase client reads two vars. Copy `.env.example` to `.env.local` (already gitignored) and fill them in. The anon key is a **publishable** key — public by design when paired with RLS — so it is safe in the browser bundle, but it is **environment-specific**:
+
+- **Local stack:** run `supabase status`; use the anon key it prints (a JWT beginning `eyJ...`).
+- **Hosted project:** Supabase Dashboard → Project Settings → API Keys (the `sb_publishable_...` or legacy anon key).
+
+`NEXT_PUBLIC_SUPABASE_URL` defaults to the local stack (`http://127.0.0.1:54321`) when unset, so only the anon key strictly needs setting. If it is missing, the app fails loudly instead of falling back to a hardcoded key. Realtime integration tests read the same vars, so set them before running `npm test`.
+
 The home page is the cockpit start page: pick a seeded Case Type, name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
 
 ## Seeding
