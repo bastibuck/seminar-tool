@@ -1,0 +1,12 @@
+# The viewer treats Realtime events as notifications and refetches from the DB as source of truth
+
+The viewer only ever reads case state through `GET /api/viewer/:code`: React Query holds the query key, and both Realtime subscriptions in `app/viewer/[code]/viewer-realtime.tsx` (`releases` on `*`, `cases` on UPDATE) are parameter-less callbacks that just call `queryClient.invalidateQueries(...)`. The websocket message is a ping — a signal that something changed — never a source of row data. The delivered `payload.new` / `payload.old` fields are ignored in production code.
+
+We chose this deliberately over reading the payload directly. A payload is a point-in-time snapshot of whatever the event happened to carry; the DB is authoritative and always current. Doing a refetch on every event keeps a single source of truth (the tables) and sidesteps the question of which fields an event did or did not include. The cost is a REST round-trip per event, which is fine at this app's volume (a handful of releases per hour per case).
+
+Two consequences follow:
+
+- **`replica identity` is not load-bearing.** Because no production code reads `payload.old` or `payload.new`, we use the default identity on both Realtime tables instead of `replica identity full`; the only dialects that ever inspect payload fields are integration tests (INSERT/UPDATE assert on `payload.new`, which is populated regardless of identity). Dropping `replica identity full` means Postgres writes only the primary key into `payload.old` on UPDATE/DELETE, which slightly reduces WAL volume per row change. This must not be read as a promise that `payload.old` will ever carry full pre-images in the viewer path.
+- **RLS does not gate this decision.** Whether RLS ends up on (`#20`) or off, the viewer still never reads payloads, so the replica-identity posture does not depend on the RLS outcome. The dependency noted earlier that put `#18` behind `#20` was about what DELETE payloads *carry*; since we never read them, the two tickets are independent.
+
+Alternatives rejected: reading `payload.new` directly to render released findings (couples the UI snapshot to the event shape and to RLS/identity behavior, and risks staleness), and building the viewer feed purely from event aggregation (second source of truth alongside the tables).
