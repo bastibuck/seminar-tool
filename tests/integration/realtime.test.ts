@@ -182,8 +182,15 @@ describe("realtime push from cockpit to viewer", () => {
 
     const deleteEvent = sub.events.find(
       (e) => (e as { eventType: string }).eventType === "DELETE",
-    ) as { eventType: string; old: { id: number } };
+    ) as { eventType: string; old: { id: number; case_id: string } };
     expect(deleteEvent.old.id).toBeDefined();
+
+    // The DELETE must carry `case_id` in its pre-image (payload.old): the
+    // case-scoped subscription filters on case_id=eq.<id>, and for a DELETE the
+    // filter is evaluated only against the pre-image. `case_id` is only present
+    // when the table uses `replica identity full`, so this assertion guards
+    // against accidentally dropping it (see ADR-0006).
+    expect(deleteEvent.old.case_id).toBe(caseId);
 
     sub.cleanup();
   });
