@@ -27,7 +27,7 @@ The Supabase client reads two vars. Copy `.env.example` to `.env.local` (already
 
 `NEXT_PUBLIC_SUPABASE_URL` defaults to the local stack (`http://127.0.0.1:54321`) when unset, so only the anon key strictly needs setting. If it is missing, the app fails loudly instead of falling back to a hardcoded key. Realtime integration tests read the same vars, so set them before running `npm test`.
 
-The home page is the cockpit start page: pick a seeded Case Type, name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
+The home page is the cockpit start page: pick a Case Type (the database is seeded with an example, and admins can author more), name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
 
 ## Seeding
 
