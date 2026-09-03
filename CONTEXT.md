@@ -9,8 +9,16 @@ A predefined case script: a named scenario carrying its fixed list of findings, 
 _Avoid_: template, blueprint, preset
 
 **Case**:
-A named run of a case type, steered live by doctors and worked through by students. Multiple cases can run in parallel.
+A temporary named run of a case type, steered live by doctors and worked through by students in person. Multiple cases can run in parallel, and a case is not retained as a lasting record.
 _Avoid_: session, room, workshop
+
+**Case Activity**:
+A real doctor action on a case: creating the case, releasing a finding, or un-releasing a finding. Viewer access and page views are not case activity.
+_Avoid_: access, visit, heartbeat
+
+**Case Expiry**:
+The point after which a case is eligible for deletion: 24 hours after it ends, or 72 hours after its last case activity while it remains active.
+_Avoid_: archive, retention forever
 
 **Cockpit**:
 The doctor-facing surface used to start and steer a case and release findings.
