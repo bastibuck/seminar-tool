@@ -41,14 +41,15 @@ export async function caseTypeExists(id: string): Promise<boolean> {
 
 const CASE_CODE_CONSTRAINT = "cases_code_key";
 
-function isCodeCollision(error: unknown): boolean {
+export function isCodeCollision(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
     (error as { code?: unknown }).code === "23505" &&
-    "constraint" in error &&
-    (error as { constraint?: unknown }).constraint === CASE_CODE_CONSTRAINT
+    "constraint_name" in error &&
+    (error as { constraint_name?: unknown }).constraint_name ===
+      CASE_CODE_CONSTRAINT
   );
 }
 
