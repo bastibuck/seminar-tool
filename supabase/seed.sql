@@ -3,7 +3,7 @@ values ('Bereit');
 
 insert into case_types (id, name)
 values ('11111111-4111-4111-8111-111111111111', 'Akuter Thoraxschmerz')
-on conflict (id) do nothing;
+on conflict (name) do nothing;
 
 insert into findings (id, case_type_id, name, position)
 values
