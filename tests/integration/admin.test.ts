@@ -11,6 +11,14 @@ let sql: ReturnType<typeof connectTestDb>;
 
 const adminBase = `${BASE_URL}/api/admin/case-types`;
 
+let runId: string;
+beforeAll(() => {
+  runId = crypto.randomUUID().slice(0, 8);
+});
+function testName(name: string): string {
+  return `${name} [${runId}]`;
+}
+
 async function createType(name: string): Promise<string> {
   const response = await fetch(adminBase, {
     method: "POST",
@@ -90,11 +98,15 @@ async function swapFindings(
   });
 }
 
-beforeAll(() => {
+const SEEDED_CASE_TYPE_ID = "11111111-4111-4111-8111-111111111111";
+
+beforeAll(async () => {
   sql = connectTestDb();
 });
 
 afterAll(async () => {
+  await sql`DELETE FROM cases WHERE case_type_id != ${SEEDED_CASE_TYPE_ID}`;
+  await sql`DELETE FROM case_types WHERE id != ${SEEDED_CASE_TYPE_ID}`;
   await sql.end();
 });
 
@@ -111,9 +123,9 @@ describe("Case Type authoring via /api/admin/case-types", () => {
   });
 
   it("creates a case type and it becomes startable", async () => {
-    const id = await createType("Reanimation");
+    const id = await createType(testName("Reanimation"));
     const startHtml = await getStartPage();
-    expect(startHtml).toContain("Reanimation");
+    expect(startHtml).toContain(testName("Reanimation"));
   });
 
   it("rejects an empty case type name in German", async () => {
@@ -128,8 +140,21 @@ describe("Case Type authoring via /api/admin/case-types", () => {
     expect(body.error).toBe("Bitte gib einen Namen ein.");
   });
 
+  it("rejects a duplicate case type name in German", async () => {
+    await createType(testName("Doppelter Falltyp"));
+    const response = await fetch(adminBase, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ name: testName("Doppelter Falltyp") }),
+    });
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toContain("existiert bereits");
+  });
+
   it("renames a case type", async () => {
-    const id = await createType("Umbenennen Typ");
+    const id = await createType(testName("Umbenennen Typ"));
     const response = await renameType(id, "Umbenannt");
     expect(response.status).toBe(200);
     const list = await (await fetch(adminBase)).json();
@@ -138,15 +163,24 @@ describe("Case Type authoring via /api/admin/case-types", () => {
   });
 
   it("rejects renaming to an empty name in German", async () => {
-    const id = await createType("Leerer Name");
+    const id = await createType(testName("Leerer Name"));
     const response = await renameType(id, "  ");
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error).toBe("Bitte gib einen Namen ein.");
   });
 
+  it("rejects renaming to an existing case type name in German", async () => {
+    const id1 = await createType(testName("Erster Typ"));
+    await createType(testName("Zweiter Typ"));
+    const response = await renameType(id1, testName("Zweiter Typ"));
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toContain("existiert bereits");
+  });
+
   it("deletes an unreferenced case type", async () => {
-    const id = await createType("Löschen Mich");
+    const id = await createType(testName("Löschen Mich"));
     const response = await deleteType(id);
     expect(response.status).toBe(200);
     const list = await (await fetch(adminBase)).json();
@@ -154,7 +188,7 @@ describe("Case Type authoring via /api/admin/case-types", () => {
   });
 
   it("refuses to delete a referenced case type in German", async () => {
-    const id = await createType("Verwendet Typ");
+    const id = await createType(testName("Verwendet Typ"));
     await createCase({ caseTypeId: id, name: "Laufender Testfall" });
     const response = await deleteType(id);
     expect(response.status).toBe(409);
@@ -167,14 +201,14 @@ describe("Case Type authoring via /api/admin/case-types", () => {
 
 describe("Finding authoring via /api/admin/case-types/[id]", () => {
   it("starts with an empty findings list for a new type", async () => {
-    const id = await createType("Leere Befunde");
+    const id = await createType(testName("Leere Befunde"));
     const detail = await getTypeFindings(id);
-    expect(detail.name).toBe("Leere Befunde");
+    expect(detail.name).toBe(testName("Leere Befunde"));
     expect(detail.findings).toEqual([]);
   });
 
   it("adds findings in order", async () => {
-    const id = await createType("Befund Reihenfolge");
+    const id = await createType(testName("Befund Reihenfolge"));
     const f1 = await addFinding(id, "Anamnese");
     const f2 = await addFinding(id, "Vitalparameter");
     const detail = await getTypeFindings(id);
@@ -185,7 +219,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("rejects an empty finding name in German", async () => {
-    const id = await createType("Leerer Befund");
+    const id = await createType(testName("Leerer Befund"));
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -197,7 +231,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("rejects duplicate finding names within a type in German", async () => {
-    const id = await createType("Doppelter Befund");
+    const id = await createType(testName("Doppelter Befund"));
     await addFinding(id, "EKG");
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
@@ -210,7 +244,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("renames a finding", async () => {
-    const id = await createType("Befund Umbenennen");
+    const id = await createType(testName("Befund Umbenennen"));
     const f = await addFinding(id, "Alt");
     const response = await renameFinding(id, f, "Neu");
     expect(response.status).toBe(200);
@@ -219,7 +253,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("rejects renaming a finding to a duplicate in German", async () => {
-    const id = await createType("Befund Doppel");
+    const id = await createType(testName("Befund Doppel"));
     const f1 = await addFinding(id, "A");
     await addFinding(id, "B");
     const response = await renameFinding(id, f1, "B");
@@ -229,7 +263,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("swaps adjacent findings and re-indexes delete", async () => {
-    const id = await createType("Swap Typ");
+    const id = await createType(testName("Swap Typ"));
     const f1 = await addFinding(id, "Erster");
     const f2 = await addFinding(id, "Zweiter");
 
@@ -250,7 +284,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
   });
 
   it("refuses to delete a finding that was ever released in German", async () => {
-    const id = await createType("Freigegebener Befund");
+    const id = await createType(testName("Freigegebener Befund"));
     const findingId = await addFinding(id, "Blutbild");
     const { cockpitUrl } = await createAndGetCockpit(id);
     await releaseFinding(cockpitUrl, findingId);
@@ -266,24 +300,24 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
 
 describe("admin pages", () => {
   it("renders /admin with the case type list", async () => {
-    await createType("Seiten Testtyp");
+    await createType(testName("Seiten Testtyp"));
     const response = await fetch(`${BASE_URL}/admin`);
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain("Falltypen");
-    expect(html).toContain("Seiten Testtyp");
+    expect(html).toContain(testName("Seiten Testtyp"));
     expect(html).toContain("Neuer Falltyp");
   });
 
   it("renders the findings editor for a case type", async () => {
-    const id = await createType("Findings Seitentest");
+    const id = await createType(testName("Findings Seitentest"));
     await addFinding(id, "Erster Befund");
     await addFinding(id, "Zweiter Befund");
 
     const response = await fetch(`${BASE_URL}/admin/case-types/${id}`);
     expect(response.status).toBe(200);
     const html = await response.text();
-    expect(html).toContain("Findings Seitentest");
+    expect(html).toContain(testName("Findings Seitentest"));
     expect(html).toContain("Erster Befund");
     expect(html).toContain("Zweiter Befund");
     expect(html).toContain("Befund hinzufügen");

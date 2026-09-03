@@ -21,6 +21,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   switch (result.status) {
     case "empty-name":
       return jsonError("Bitte gib einen Namen ein.", 400);
+    case "duplicate-name":
+      return jsonError(
+        "Ein Falltyp mit diesem Namen existiert bereits.",
+        409,
+      );
     case "ok":
       return NextResponse.json({ ok: true, id: result.id }, { status: 201 });
   }
@@ -36,6 +41,11 @@ export async function PUT(request: Request): Promise<NextResponse> {
       return jsonError("Bitte gib einen Namen ein.", 400);
     case "unknown-type":
       return jsonError("Falltyp nicht gefunden.", 404);
+    case "duplicate-name":
+      return jsonError(
+        "Ein Falltyp mit diesem Namen existiert bereits.",
+        409,
+      );
     case "ok":
       return NextResponse.json({ ok: true });
   }

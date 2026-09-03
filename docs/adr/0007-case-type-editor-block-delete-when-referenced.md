@@ -8,3 +8,5 @@ Deletes are the one place preservation outweighs flexibility, and they differ by
 - **A finding delete is blocked once any `releases` row ever referenced it.** A release is a record that the finding was shown to students; deleting the finding would cascade-destroy that release history, erasing the audit of what was disclosed. We refuse with the name of a run that released it.
 
 Renames and reorders stay allowed and are retroactive (per ADR 0003): editing a finding immediately affects future starts and, via the release reference, past viewers. Only hard deletes are blocked. This keeps the accepted 0003 trade-off while guarding against accidental loss of referenced data.
+
+Case type names are globally unique: a `unique` constraint on `case_types.name` (migration 000005) refuses duplicate names at the database level, and the admin API surfaces this as a friendly 409. Finding names remain unique only within their case type.

@@ -24,23 +24,44 @@ export async function getCaseTypeDetail(
 
 export type CreateCaseTypeResult =
   | { status: "ok"; id: string }
-  | { status: "empty-name" };
+  | { status: "empty-name" }
+  | { status: "duplicate-name" };
+
+const CASE_TYPE_NAME_CONSTRAINT = "case_types_name_unique";
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505" &&
+    "constraint_name" in error &&
+    (error as { constraint_name?: unknown }).constraint_name ===
+      CASE_TYPE_NAME_CONSTRAINT
+  );
+}
 
 export async function createCaseType(
   name: string,
 ): Promise<CreateCaseTypeResult> {
   const trimmed = name.trim();
   if (trimmed === "") return { status: "empty-name" };
-  const rows = await sql<{ id: string }[]>`
-    insert into case_types (name) values (${trimmed}) returning id
-  `;
-  return { status: "ok", id: rows[0]!.id };
+  try {
+    const rows = await sql<{ id: string }[]>`
+      insert into case_types (name) values (${trimmed}) returning id
+    `;
+    return { status: "ok", id: rows[0]!.id };
+  } catch (error) {
+    if (isUniqueViolation(error)) return { status: "duplicate-name" };
+    throw error;
+  }
 }
 
 export type RenameCaseTypeResult =
   | { status: "ok" }
   | { status: "unknown-type" }
-  | { status: "empty-name" };
+  | { status: "empty-name" }
+  | { status: "duplicate-name" };
 
 export async function renameCaseType(
   id: string,
@@ -48,6 +69,11 @@ export async function renameCaseType(
 ): Promise<RenameCaseTypeResult> {
   const trimmed = name.trim();
   if (trimmed === "") return { status: "empty-name" };
+  const existing = await sql<{ id: string }[]>`
+    select id from case_types
+    where name = ${trimmed} and id != ${id}
+  `;
+  if (existing.length > 0) return { status: "duplicate-name" };
   const rows = await sql<{ id: string }[]>`
     update case_types set name = ${trimmed} where id = ${id} returning id
   `;
