@@ -207,11 +207,19 @@ export async function setFindingReleased(input: {
     if (!finding) return { status: "unknown-finding" };
 
     if (input.intent === "release") {
-      await tx`
+      const inserted = await tx`
         insert into releases (case_id, finding_id, note)
         values (${row.id}, ${finding.id}, ${input.note})
         on conflict (case_id, finding_id) do nothing
+        returning id
       `;
+      if (inserted.count > 0) {
+        await tx`
+          update cases
+          set last_activity_at = now()
+          where id = ${row.id}
+        `;
+      }
       const [released] = await tx<{ releasedAt: Date | null }[]>`
         select released_at as "releasedAt"
         from releases
@@ -219,10 +227,18 @@ export async function setFindingReleased(input: {
       `;
       return { status: "ok", releasedAt: released?.releasedAt ?? null };
     } else {
-      await tx`
+      const deleted = await tx`
         delete from releases
         where case_id = ${row.id} and finding_id = ${finding.id}
+        returning id
       `;
+      if (deleted.count > 0) {
+        await tx`
+          update cases
+          set last_activity_at = now()
+          where id = ${row.id}
+        `;
+      }
       return { status: "ok", releasedAt: null };
     }
   });
