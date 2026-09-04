@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin";
 
 import { jsonError } from "../../http";
+import { validateFindingImage } from "@/lib/finding-images";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -36,8 +37,12 @@ export async function POST(
   const { id } = await context.params;
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
+  const image = formData.get("image");
+  if (!(image instanceof File)) return jsonError("Bitte wähle ein Bild aus.", 400);
+  const validationError = validateFindingImage(image);
+  if (validationError) return jsonError(validationError, 400);
 
-  const result = await createFinding(id, name);
+  const result = await createFinding(id, name, image);
   switch (result.status) {
     case "empty-name":
       return jsonError("Bitte gib einen Namen ein.", 400);

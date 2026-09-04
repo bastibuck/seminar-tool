@@ -1,5 +1,6 @@
 import { generateCaseCode } from "./case-code";
 import { sql } from "./db";
+import { signFindingImages } from "./finding-images";
 
 export type CaseType = {
   id: string;
@@ -132,6 +133,7 @@ export type ReleasedFinding = {
   name: string;
   note: string | null;
   releasedAt: Date;
+  imageUrl: string;
 };
 
 export type ViewerCase = {
@@ -152,8 +154,8 @@ export async function getCaseByCode(
   const row = rows[0];
   if (!row) return null;
 
-  const findings = await sql<ReleasedFinding[]>`
-    select f.id, f.name, r.note, r.released_at as "releasedAt"
+  const findings = await sql<Omit<ReleasedFinding, "imageUrl"> & { imagePath: string }[]>`
+    select f.id, f.name, f.image_path as "imagePath", r.note, r.released_at as "releasedAt"
     from findings f
     join releases r on r.finding_id = f.id and r.case_id = ${row.id}
     where f.case_type_id = (
@@ -162,11 +164,15 @@ export async function getCaseByCode(
     order by r.released_at
   `;
 
+  const imageUrls = await signFindingImages(findings.map((finding) => finding.imagePath));
   return {
     caseId: row.id,
     name: row.name,
     endedAt: row.endedAt,
-    findings,
+    findings: findings.map(({ imagePath, ...finding }) => ({
+      ...finding,
+      imageUrl: imageUrls.get(imagePath)!,
+    })) as ReleasedFinding[],
   };
 }
 

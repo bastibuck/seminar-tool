@@ -37,9 +37,10 @@ export default async function CaseTypePage({ params }: CaseTypePageProps) {
       <FindingsEditor
         caseTypeId={id}
         initialFindings={detail.findings.map((finding) => ({
-          id: finding.id,
-          name: finding.name,
-          position: finding.position,
+           id: finding.id,
+           name: finding.name,
+           position: finding.position,
+           imageUrl: finding.imageUrl,
         }))}
       />
     </main>

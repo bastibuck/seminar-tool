@@ -340,8 +340,9 @@ describe("POST /api/cases/[cockpitId]/releases error handling", () => {
       on conflict (id) do nothing
     `;
     await db`
-      insert into findings (id, case_type_id, name, position)
-      values (${FOREIGN_FINDING_ID}, ${FOREIGN_TYPE_ID}, 'Fremder Befund', 1)
+      insert into findings (id, case_type_id, name, position, image_path)
+      values (${FOREIGN_FINDING_ID}, ${FOREIGN_TYPE_ID}, 'Fremder Befund', 1,
+        ${`findings/${FOREIGN_FINDING_ID}/placeholder.svg`})
       on conflict (id) do nothing
     `;
 
