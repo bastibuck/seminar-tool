@@ -137,8 +137,17 @@ describe("GET /cockpit/[id]", () => {
 
 describe("seed script", () => {
   it("is idempotent when re-run against the database", async () => {
-    const before = ((await getStartPage()).match(/<option value="/g) ?? [])
-      .length;
+    const caseTypeCount = async () => {
+      const sql = connectTestDb();
+      try {
+        const rows = await sql<{ count: string }[]>`select count(*) from case_types where name = ${SEEDED_TYPE_NAME}`;
+        return Number(rows[0]!.count);
+      } finally {
+        await sql.end();
+      }
+    };
+
+    const before = await caseTypeCount();
 
     const sql = connectTestDb();
     try {
@@ -149,8 +158,7 @@ describe("seed script", () => {
       await sql.end();
     }
 
-    const after = ((await getStartPage()).match(/<option value="/g) ?? [])
-      .length;
+    const after = await caseTypeCount();
 
     expect(before).toBeGreaterThan(0);
     expect(after).toBe(before);

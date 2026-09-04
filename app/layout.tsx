@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { QueryProvider } from "./providers";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Seminar Tool",

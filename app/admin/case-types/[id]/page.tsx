@@ -22,14 +22,8 @@ export default async function CaseTypePage({ params }: CaseTypePageProps) {
   if (!detail) notFound();
 
   return (
-    <main
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        maxWidth: "40rem",
-        margin: "0 auto",
-        padding: "2rem",
-      }}
-    >
+    <main className="shell">
+      <p className="eyebrow">Falltyp bearbeiten</p>
       <p>
         <a href="/admin">← Zurück zu den Falltypen</a>
       </p>

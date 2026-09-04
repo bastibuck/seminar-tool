@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -25,28 +25,6 @@ type ViewerRealtimeProps = {
   initialFindings: ReleasedFinding[];
   initialEnded: boolean;
 };
-
-const feedItemStyle = {
-  marginBottom: "1.5rem",
-  padding: "1rem",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-} as const;
-
-const waitingStyle = {
-  color: "#57606a",
-  fontSize: "1.1rem",
-  marginTop: "2rem",
-} as const;
-
-const bannerStyle = {
-  marginBottom: "1.5rem",
-  padding: "0.5rem 1rem",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-  backgroundColor: "#f6f8fa",
-  color: "#57606a",
-} as const;
 
 const timeFormat = new Intl.DateTimeFormat("de-DE", {
   hour: "2-digit",
@@ -73,6 +51,8 @@ export function ViewerRealtime({
 }: ViewerRealtimeProps) {
   const queryClient = useQueryClient();
   const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
+  const [zoomed, setZoomed] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const queryKey = ["viewer", caseCode] as const;
 
   const { data } = useQuery<ViewerQueryData>({
@@ -135,47 +115,64 @@ export function ViewerRealtime({
   const findings = data ? mapFindings(data.findings) : [];
   const ended = data?.ended ?? initialEnded;
 
+  useEffect(() => {
+    if (!expandedImage) return;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpandedImage(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedImage]);
+
+  function openImage(finding: ReleasedFinding) {
+    setZoomed(false);
+    setExpandedImage({ ...finding, releasedAt: finding.releasedAt.toISOString() });
+  }
+
   return (
     <section aria-label="Freigegebene Befunde">
-      {ended ? <p style={bannerStyle}>Fall beendet</p> : null}
+      {ended ? <p className="status">Fall beendet</p> : null}
       {findings.length === 0 ? (
-        <p style={waitingStyle}>Warte auf freigegebene Befunde…</p>
+        <p className="empty">Warte auf freigegebene Befunde...</p>
       ) : (
         <>
           <h2>Befunde</h2>
-          <ol style={{ listStyle: "none", padding: 0 }}>
+          <ol className="finding-grid">
             {findings.map((finding) => (
-              <li key={finding.id} style={feedItemStyle}>
-                <strong>{finding.name}</strong>
+              <li key={finding.id} className="finding-card">
                 <img
                   src={finding.imageUrl}
                   alt={finding.name}
-                  style={{ display: "block", maxWidth: "100%", maxHeight: "18rem", objectFit: "contain", cursor: "zoom-in", marginTop: "0.75rem" }}
-                  onClick={() => setExpandedImage({ ...finding, releasedAt: finding.releasedAt.toISOString() })}
+                  className="finding-card__image"
+                  onClick={() => openImage(finding)}
                 />
+                <div className="finding-card__body">
+                <strong>{finding.name}</strong>
                 {finding.note ? <p>{finding.note}</p> : null}
-                <p style={{ color: "#57606a", fontSize: "0.85rem" }}>
+                <p className="finding-card__time">
                   Freigegeben um{" "}
                   <time dateTime={finding.releasedAt.toISOString()}>
                     {timeFormat.format(finding.releasedAt)}
                   </time>{" "}
                   Uhr
                 </p>
+                </div>
               </li>
             ))}
           </ol>
         </>
       )}
       {expandedImage ? (
-        <div
-          role="dialog"
-          aria-label={expandedImage.name}
-          onClick={() => setExpandedImage(null)}
-          onKeyDown={(event) => event.key === "Escape" && setExpandedImage(null)}
-          tabIndex={0}
-          style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", padding: "2rem", background: "rgb(0 0 0 / 75%)", cursor: "zoom-out" }}
-        >
-          <img src={expandedImage.imageUrl} alt={expandedImage.name} style={{ maxWidth: "100%", maxHeight: "100%" }} />
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label={`${expandedImage.name} vergrößert`}>
+          <div className="lightbox__bar">
+            <span className="lightbox__title">{expandedImage.name}</span>
+            <button ref={closeButtonRef} className="button button--secondary" type="button" onClick={() => setExpandedImage(null)}>Schließen</button>
+          </div>
+          <div className="lightbox__image-wrap">
+            <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomed ? " lightbox__image--zoomed" : ""}`} onClick={() => setZoomed((value) => !value)} />
+          </div>
+          <div className="lightbox__bar"><span>{zoomed ? "Zum Verkleinern auf das Bild klicken" : "Zum Vergrößern auf das Bild klicken"}</span><button className="button button--secondary" type="button" onClick={() => setZoomed((value) => !value)}>{zoomed ? "Verkleinern" : "Vergrößern"}</button></div>
         </div>
       ) : null}
     </section>

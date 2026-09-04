@@ -14,19 +14,6 @@ type CockpitPageProps = {
 const COCKPIT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const pageStyle = {
-  fontFamily: "system-ui, sans-serif",
-  maxWidth: "40rem",
-  margin: "0 auto",
-  padding: "2rem",
-} as const;
-
-const codeStyle = {
-  fontSize: "1.5rem",
-  letterSpacing: "0.1em",
-  fontWeight: 700,
-} as const;
-
 export default async function CockpitPage({
   params,
 }: CockpitPageProps) {
@@ -38,12 +25,12 @@ export default async function CockpitPage({
   if (!overview) notFound();
 
   return (
-    <main style={pageStyle}>
-      <p>Cockpit</p>
+    <main className="shell">
+      <p className="eyebrow">Cockpit</p>
       <h1>{overview.name}</h1>
       <p>
         Fallcode für die Studierenden:{" "}
-        <strong style={codeStyle}>{formatCaseCode(overview.code)}</strong>
+        <strong className="code">{formatCaseCode(overview.code)}</strong>
       </p>
       <CockpitClient
         cockpitId={id}

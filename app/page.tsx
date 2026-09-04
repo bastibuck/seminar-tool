@@ -6,67 +6,45 @@ type HomeProps = {
   searchParams: Promise<{ error?: string }>;
 };
 
-const pageStyle = {
-  fontFamily: "system-ui, sans-serif",
-  maxWidth: "32rem",
-  margin: "0 auto",
-  padding: "2rem",
-} as const;
-
-const labelStyle = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontWeight: 600,
-} as const;
-
-const fieldStyle = {
-  display: "block",
-  width: "100%",
-  marginBottom: "1rem",
-  padding: "0.5rem",
-  fontSize: "1rem",
-} as const;
-
-const buttonStyle = {
-  padding: "0.6rem 1.2rem",
-  fontSize: "1rem",
-  cursor: "pointer",
-} as const;
-
 export default async function Home({ searchParams }: HomeProps) {
   const { error } = await searchParams;
   const caseTypes = await listCaseTypes();
 
   return (
-    <main style={pageStyle}>
+    <main className="shell shell--narrow">
+      <p className="eyebrow">Medizinisches Rollenspiel</p>
       <h1>Fall starten</h1>
+      <p className="lede">Steuere einen vorbereiteten Fall im Cockpit und gib Befunde im richtigen Moment für den Seminarraum frei.</p>
       {error ? (
-        <p role="alert" style={{ color: "#b00020" }}>
+        <p role="alert" className="alert">
           {error}
         </p>
       ) : null}
-      <form method="post" action="/api/cases">
-        <label htmlFor="caseTypeId" style={labelStyle}>
-          Falltyp
-        </label>
-        <select id="caseTypeId" name="caseTypeId" required style={fieldStyle}>
-          {caseTypes.map((caseType) => (
-            <option key={caseType.id} value={caseType.id}>
-              {caseType.name}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="name" style={labelStyle}>
-          Name des Falls
-        </label>
-        <input
-          id="name"
-          name="name"
-          required
-          placeholder="z. B. Gruppe A – Montag"
-          style={fieldStyle}
-        />
-        <button type="submit" style={buttonStyle}>
+      <form className="surface form-card start-case-form" method="post" action="/api/cases">
+        <div className="start-case-form__field">
+          <label htmlFor="caseTypeId">Falltyp</label>
+          <span className="start-case-form__hint">Wähle das vorbereitete Szenario.</span>
+          <div className="start-case-form__select-wrap">
+            <select id="caseTypeId" name="caseTypeId" required>
+              {caseTypes.map((caseType) => (
+                <option key={caseType.id} value={caseType.id}>
+                  {caseType.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="start-case-form__field">
+          <label htmlFor="name">Name des Falls</label>
+          <span className="start-case-form__hint">So erkennst du diese Durchführung später im Cockpit.</span>
+          <input
+            id="name"
+            name="name"
+            required
+            placeholder="z. B. Gruppe A – Montag"
+          />
+        </div>
+        <button className="button start-case-form__submit" type="submit">
           Fall starten
         </button>
       </form>

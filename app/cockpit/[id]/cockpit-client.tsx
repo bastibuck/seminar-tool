@@ -27,69 +27,6 @@ const releaseTimeFormat = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
 });
 
-const releasedBadgeStyle = {
-  color: "#1a7f37",
-  fontWeight: 600,
-} as const;
-
-const heldBackBadgeStyle = {
-  color: "#57606a",
-} as const;
-
-const endedNoteStyle = {
-  marginTop: "1.5rem",
-  color: "#57606a",
-} as const;
-
-const endButtonStyle = {
-  marginTop: "2rem",
-  padding: "0.6rem 1.2rem",
-  fontSize: "1rem",
-  cursor: "pointer",
-} as const;
-
-const dialogStyle = {
-  backgroundColor: "#fff",
-  borderRadius: "8px",
-  padding: "1.5rem",
-  maxWidth: "28rem",
-  width: "90%",
-  boxShadow: "0 4px 24px rgba(0, 0, 0, 0.15)",
-} as const;
-
-const warningStyle = {
-  padding: "1rem",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-  margin: "1rem 0",
-} as const;
-
-const confirmEndButtonStyle = {
-  padding: "0.5rem 1rem",
-  fontSize: "1rem",
-  cursor: "pointer",
-  backgroundColor: "#b00020",
-  color: "#fff",
-  border: "none",
-  borderRadius: "4px",
-} as const;
-
-const cancelButtonStyle = {
-  padding: "0.5rem 1rem",
-  fontSize: "1rem",
-  cursor: "pointer",
-  backgroundColor: "#f6f8fa",
-  border: "1px solid #d0d7de",
-  borderRadius: "4px",
-} as const;
-
-const buttonRowStyle = {
-  display: "flex",
-  gap: "0.5rem",
-  justifyContent: "flex-end",
-  marginTop: "1rem",
-} as const;
-
 function formatTime(iso: string): string {
   return releaseTimeFormat.format(new Date(iso));
 }
@@ -241,18 +178,18 @@ export function CockpitClient({
   return (
     <>
       {error ? (
-        <p role="alert" style={{ color: "#b00020" }}>
+        <p role="alert" className="alert">
           {error}
         </p>
       ) : null}
       <section aria-label="Befunde">
         <h2>Befunde</h2>
-        <ol>
-          {findings.map((finding) => (
-            <li key={finding.id} data-finding-id={finding.id}>
-              <strong>{finding.name}</strong>
+          <ol className="cockpit-list">
+            {findings.map((finding) => (
+            <li data-finding-id={finding.id} className="cockpit-item" key={finding.id}>
+              <div className="cockpit-item__main"><strong>{finding.name}</strong>
               {finding.releasedAt ? (
-                <p style={releasedBadgeStyle}>
+                <p className="cockpit-item__state" style={{ color: "var(--teal-dark)" }}>
                   Freigegeben um{" "}
                   <time dateTime={finding.releasedAt}>
                     {formatTime(finding.releasedAt)}
@@ -260,11 +197,12 @@ export function CockpitClient({
                   Uhr
                 </p>
               ) : (
-                <p style={heldBackBadgeStyle}>Zurückgehalten</p>
+                <p className="cockpit-item__state" style={{ color: "var(--muted)" }}>Zurückgehalten</p>
               )}
+              </div>
               {!endedAt ? (
                 finding.releasedAt ? (
-                  <button
+                  <button className="button button--secondary"
                     type="button"
                     data-action="unrelease"
                     disabled={pendingFindingId === finding.id}
@@ -288,7 +226,7 @@ export function CockpitClient({
         </ol>
       </section>
       {endedAt ? (
-        <p style={endedNoteStyle}>
+        <p className="status">
           Beendet um{" "}
           <time dateTime={endedAt}>{formatTime(endedAt)}</time> Uhr – es können
           keine Befunde mehr freigegeben oder zurückgezogen werden.
@@ -297,41 +235,41 @@ export function CockpitClient({
         <button
           type="button"
           data-action="end"
-          style={endButtonStyle}
+          className="button button--danger"
           onClick={openEndDialog}
         >
           Fall beenden
         </button>
       )}
-      <dialog ref={endDialogRef} style={dialogStyle}>
-        <h3 style={{ marginTop: 0 }}>Fall beenden</h3>
+      <dialog ref={endDialogRef} className="dialog"><div className="dialog__body">
+        <p className="eyebrow">Fall abschließen</p><h2>Fall beenden</h2>
         <p>
           Möchtest du den Fall jetzt beenden? Das Beenden ist endgültig und kann
           nicht rückgängig gemacht werden. Danach können keine Befunde mehr
           freigegeben oder zurückgezogen werden.
         </p>
-        <div role="note" style={warningStyle}>
+        <div role="note" className="warning">
           Die bereits freigegebenen Befunde bleiben für die Studierenden
           sichtbar.
         </div>
-        <div style={buttonRowStyle}>
+        <div className="button-row button-row--end">
           <button
             type="button"
-            style={cancelButtonStyle}
+            className="button button--secondary"
             onClick={closeEndDialog}
           >
             Abbrechen
           </button>
           <button
             type="button"
-            style={confirmEndButtonStyle}
+            className="button button--danger"
             disabled={endMutation.isPending}
             onClick={confirmEnd}
           >
             {endMutation.isPending ? "Wird beendet…" : "Fall jetzt beenden"}
           </button>
         </div>
-      </dialog>
+      </div></dialog>
     </>
   );
 }

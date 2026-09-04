@@ -30,7 +30,7 @@ async function createFreshCase(name: string): Promise<{
 
 function extractFindingsFromCockpit(cockpitHtml: string): { id: string; name: string }[] {
   const findings: { id: string; name: string }[] = [];
-  const rowPattern = /<li data-finding-id="([0-9a-f-]{36})">([\s\S]*?)<\/li>/g;
+  const rowPattern = /<li[^>]*data-finding-id="([0-9a-f-]{36})"[^>]*>([\s\S]*?)<\/li>/g;
   for (const [, id, content] of cockpitHtml.matchAll(rowPattern)) {
     const name = content.match(/<strong>([^<]*)<\/strong>/)?.[1];
     if (name) findings.push({ id, name });

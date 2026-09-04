@@ -7,20 +7,6 @@ import { ViewerRealtime } from "./viewer-realtime";
 
 export const dynamic = "force-dynamic";
 
-const pageStyle = {
-  fontFamily: "system-ui, sans-serif",
-  maxWidth: "40rem",
-  margin: "0 auto",
-  padding: "2rem",
-} as const;
-
-const codeStyle = {
-  fontSize: "1.1rem",
-  letterSpacing: "0.05em",
-  fontWeight: 600,
-  fontFamily: "monospace",
-} as const;
-
 type ViewerPageProps = {
   params: Promise<{ code: string }>;
 };
@@ -33,11 +19,11 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
   if (!viewerCase) notFound();
 
   return (
-    <main style={pageStyle}>
-      <p style={{ color: "#57606a", marginBottom: "0.25rem" }}>Viewer</p>
+    <main className="shell">
+      <p className="eyebrow">Seminarraum</p>
       <h1>{viewerCase.name}</h1>
       <p>
-        Fallcode: <span style={codeStyle}>{formatCaseCode(code)}</span>
+        Fallcode: <span className="code">{formatCaseCode(code)}</span>
       </p>
       <ViewerRealtime
         caseId={viewerCase.caseId}
