@@ -100,15 +100,19 @@ async function swapFindings(
   });
 }
 
-const SEEDED_CASE_TYPE_ID = "11111111-4111-4111-8111-111111111111";
-
 beforeAll(async () => {
   sql = connectTestDb();
 });
 
 afterAll(async () => {
-  await sql`DELETE FROM cases WHERE case_type_id != ${SEEDED_CASE_TYPE_ID}`;
-  await sql`DELETE FROM case_types WHERE id != ${SEEDED_CASE_TYPE_ID}`;
+  const runScopedName = `% [${runId}]`;
+  await sql`
+    DELETE FROM cases
+    WHERE case_type_id IN (
+      SELECT id FROM case_types WHERE name LIKE ${runScopedName}
+    )
+  `;
+  await sql`DELETE FROM case_types WHERE name LIKE ${runScopedName}`;
   await sql.end();
 });
 
