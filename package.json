@@ -15,21 +15,21 @@
     "test": "npm run test:prepare && vitest run"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.4",
-    "@tanstack/react-query": "^5.102.8",
-    "lucide-react": "^1.41.0",
-    "next": "^16.3.2",
-    "postgres": "^3.4.9",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "@supabase/supabase-js": "2.115.0",
+    "@tanstack/react-query": "5.102.8",
+    "lucide-react": "1.41.0",
+    "next": "16.3.4",
+    "postgres": "3.4.9",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@types/node": "^24",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "supabase": "^2.115.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "supabase": "2.116.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
   },
   "volta": {
     "node": "26.8.1"
