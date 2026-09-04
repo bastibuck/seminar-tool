@@ -17,7 +17,7 @@ A real doctor action on a case: creating the case, releasing a finding, or un-re
 _Avoid_: access, visit, heartbeat
 
 **Case Expiry**:
-The intended point after which a case is eligible for deletion: 24 hours after it ends, or 72 hours after its last case activity while it remains active. This lifecycle rule is not yet active.
+The point after which a case is eligible for deletion: 24 hours after it ends, or 72 hours after its last case activity while it remains active. Expiry is evaluated by the nightly cleanup.
 _Avoid_: archive, retention forever
 
 **Cockpit**:

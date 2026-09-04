@@ -52,3 +52,12 @@ Useful extras:
 ## Database
 
 Schema lives in version-controlled migrations under `supabase/migrations/`; the app connects directly to Postgres via `DATABASE_URL` (default: `postgresql://postgres:postgres@127.0.0.1:54322/postgres`, overridable in `.env.local`).
+
+## Nightly cleanup
+
+Both cleanup jobs run daily at 03:00:
+
+- Supabase `pg_cron` deletes expired Cases from the database. Ended Cases expire after 24 hours; active Cases expire after 72 hours without Case Activity.
+- Vercel Cron runs `/api/internal/finding-image-cleanup` to remove obsolete, unreferenced Finding images from Supabase Storage. The endpoint requires the `CRON_SECRET` environment variable.
+
+The two jobs have separate responsibilities: database cleanup stays in `pg_cron`, while Storage cleanup runs through the application because it needs the Supabase Storage API.
