@@ -7,6 +7,7 @@ export type EditorFinding = {
   id: string;
   name: string;
   position: number;
+  imageUrl?: string;
 };
 
 const fieldStyle = {
@@ -34,12 +35,12 @@ const rowStyle = {
 async function mutateForm(
   url: string,
   method: string,
-  body: URLSearchParams,
+  body: BodyInit,
 ): Promise<void> {
   const response = await fetch(url, {
     method,
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
+    ...(body instanceof URLSearchParams ? { headers: { "content-type": "application/x-www-form-urlencoded" } } : {}),
+    body,
   });
   if (!response.ok) {
     let message = "Aktion fehlgeschlagen.";
@@ -62,6 +63,7 @@ export function FindingsEditor({
   const queryKey = ["admin", "case-types", caseTypeId] as const;
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const [newImage, setNewImage] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -78,14 +80,15 @@ export function FindingsEditor({
   });
 
   const addMutation = useMutation({
-    mutationFn: (name: string) =>
-      mutateForm(
-        `/api/admin/case-types/${caseTypeId}`,
-        "POST",
-        new URLSearchParams({ name }),
-      ),
+    mutationFn: ({ name, image }: { name: string; image: File }) => {
+      const body = new FormData();
+      body.set("name", name);
+      body.set("image", image);
+      return mutateForm(`/api/admin/case-types/${caseTypeId}`, "POST", body);
+    },
     onSuccess: () => {
       setNewName("");
+      setNewImage(null);
       queryClient.invalidateQueries({ queryKey });
     },
     onError: (err) => setError(err.message),
@@ -194,7 +197,10 @@ export function FindingsEditor({
                 </>
               ) : (
                 <>
-                  <span style={{ flex: 1 }}>{finding.name}</span>
+                   <span style={{ flex: 1 }}>
+                     {finding.imageUrl ? <img src={finding.imageUrl} alt="" style={{ width: "3rem", height: "3rem", objectFit: "contain", verticalAlign: "middle", marginRight: "0.5rem" }} /> : null}
+                     <a href={`/admin/findings/${finding.id}`}>{finding.name}</a>
+                   </span>
                   <button
                     type="button"
                     style={buttonStyle}
@@ -226,8 +232,8 @@ export function FindingsEditor({
                     style={buttonStyle}
                     disabled={deleteMutation.isPending}
                     onClick={() =>
-                      window.confirm(
-                        `„${finding.name}" wirklich löschen?`,
+                       window.confirm(
+                         `„${finding.name}" und sein Bild wirklich löschen?`,
                       ) && deleteMutation.mutate(finding.id)
                     }
                   >
@@ -240,23 +246,26 @@ export function FindingsEditor({
         </ol>
       )}
 
+      <p><a href={`/admin/case-types/${caseTypeId}/findings/new`}>Befund auf eigener Seite anlegen</a></p>
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (newName.trim() === "") return;
+          if (newName.trim() === "" || !newImage) return;
           setError(null);
-          addMutation.mutate(newName);
+          addMutation.mutate({ name: newName, image: newImage });
         }}
         style={{ marginTop: "1rem" }}
       >
         <label>
-          Neuer Befund
+           Neuer Befund
           <input
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             style={fieldStyle}
-          />
-        </label>
+         />
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setNewImage(event.target.files?.[0] ?? null)} />
+         </label>
         <button type="submit" style={buttonStyle} disabled={addMutation.isPending}>
           {addMutation.isPending ? "Wird angelegt…" : "Befund hinzufügen"}
         </button>

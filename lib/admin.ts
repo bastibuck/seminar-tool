@@ -1,9 +1,12 @@
 import { sql } from "./db";
+import { removeFindingImage, signFindingImages, uploadFindingImage, validateFindingImage } from "./finding-images";
 
 export type AdminFinding = {
   id: string;
   name: string;
   position: number;
+  imagePath: string;
+  imageUrl: string;
 };
 
 export async function getCaseTypeDetail(
@@ -14,12 +17,16 @@ export async function getCaseTypeDetail(
   `;
   if (rows.length === 0) return null;
 
-  const findings = await sql<AdminFinding[]>`
-    select id, name, position from findings
+  const findings = await sql<Omit<AdminFinding, "imageUrl">[]>`
+    select id, name, position, image_path as "imagePath" from findings
     where case_type_id = ${id} order by position
   `;
 
-  return { name: rows[0]!.name, findings };
+  const imageUrls = await signFindingImages(findings.map((finding) => finding.imagePath));
+  return {
+    name: rows[0]!.name,
+    findings: findings.map((finding) => ({ ...finding, imageUrl: imageUrls.get(finding.imagePath)! })),
+  };
 }
 
 export type CreateCaseTypeResult =
@@ -113,9 +120,12 @@ export type CreateFindingResult =
 export async function createFinding(
   caseTypeId: string,
   name: string,
+  image: File,
 ): Promise<CreateFindingResult> {
   const trimmed = name.trim();
   if (trimmed === "") return { status: "empty-name" };
+  const imageError = validateFindingImage(image);
+  if (imageError) throw new Error(imageError);
   return sql.begin<CreateFindingResult>(async (tx) => {
     const typeCheck = await tx<{ id: string }[]>`
       select id from case_types where id = ${caseTypeId}
@@ -134,13 +144,45 @@ export async function createFinding(
     `;
     const nextPosition = (maxPos[0]?.maxPos ?? 0) + 1;
 
-    const rows = await tx<{ id: string }[]>`
-      insert into findings (case_type_id, name, position)
-      values (${caseTypeId}, ${trimmed}, ${nextPosition})
-      returning id
-    `;
-    return { status: "ok", id: rows[0]!.id };
+    const id = crypto.randomUUID();
+    let imagePath: string | null = null;
+    try {
+      imagePath = await uploadFindingImage(id, image);
+      await tx`
+        insert into findings (id, case_type_id, name, position, image_path)
+        values (${id}, ${caseTypeId}, ${trimmed}, ${nextPosition}, ${imagePath})
+      `;
+      return { status: "ok", id };
+    } catch (error) {
+      if (imagePath) await removeFindingImage(imagePath).catch(() => undefined);
+      throw error;
+    }
   });
+}
+
+export async function getFinding(findingId: string) {
+  const rows = await sql<{ id: string; caseTypeId: string; name: string; imagePath: string }[]>`
+    select id, case_type_id as "caseTypeId", name, image_path as "imagePath"
+    from findings where id = ${findingId}
+  `;
+  const finding = rows[0];
+  if (!finding) return null;
+  const imageUrls = await signFindingImages([finding.imagePath]);
+  return { ...finding, imageUrl: imageUrls.get(finding.imagePath)! };
+}
+
+export async function replaceFindingImage(findingId: string, image: File): Promise<"ok" | "unknown-finding"> {
+  const existing = await getFinding(findingId);
+  if (!existing) return "unknown-finding";
+  const path = await uploadFindingImage(findingId, image);
+  try {
+    await sql`update findings set image_path = ${path} where id = ${findingId}`;
+  } catch (error) {
+    await removeFindingImage(path);
+    throw error;
+  }
+  void removeFindingImage(existing.imagePath).catch(() => undefined);
+  return "ok";
 }
 
 export type RenameFindingResult =
@@ -173,6 +215,20 @@ export async function renameFinding(
   });
 }
 
+export async function findingNameIsAvailable(findingId: string, name: string): Promise<RenameFindingResult> {
+  const trimmed = name.trim();
+  if (trimmed === "") return { status: "empty-name" };
+  const existing = await sql<{ id: string; caseTypeId: string }[]>`
+    select id, case_type_id as "caseTypeId" from findings where id = ${findingId}
+  `;
+  if (existing.length === 0) return { status: "unknown-finding" };
+  const duplicate = await sql<{ id: string }[]>`
+    select id from findings
+    where case_type_id = ${existing[0]!.caseTypeId} and name = ${trimmed} and id != ${findingId}
+  `;
+  return duplicate.length > 0 ? { status: "duplicate-name" } : { status: "ok" };
+}
+
 export type DeleteFindingResult =
   | { status: "ok" }
   | { status: "unknown-finding" }
@@ -182,8 +238,9 @@ export async function deleteFinding(
   findingId: string,
 ): Promise<DeleteFindingResult> {
   return sql.begin<DeleteFindingResult>(async (tx) => {
-    const existing = await tx<{ id: string; caseTypeId: string; position: number }[]>`
+    const existing = await tx<{ id: string; caseTypeId: string; position: number; imagePath: string }[]>`
       select id, case_type_id as "caseTypeId", position
+             , image_path as "imagePath"
       from findings where id = ${findingId}
     `;
     if (existing.length === 0) return { status: "unknown-finding" };
@@ -202,6 +259,7 @@ export async function deleteFinding(
     }
 
     await tx`delete from findings where id = ${findingId}`;
+    void removeFindingImage(existing[0]!.imagePath).catch(() => undefined);
 
     const remaining = await tx<{ id: string }[]>`
       select id from findings

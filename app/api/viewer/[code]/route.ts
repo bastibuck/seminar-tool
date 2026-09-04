@@ -27,6 +27,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
       name: f.name,
       note: f.note,
       releasedAt: f.releasedAt.toISOString(),
+      imageUrl: f.imageUrl,
     })),
   });
 }

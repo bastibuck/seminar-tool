@@ -26,22 +26,24 @@ async function createType(name: string): Promise<string> {
     body: new URLSearchParams({ name }),
   });
   expect(response.status).toBe(201);
-  const body = await response.json();
-  return body.id as string;
+  const result = await response.json();
+  return result.id as string;
 }
 
 async function addFinding(
   typeId: string,
   name: string,
 ): Promise<string> {
+  const body = new FormData();
+  body.set("name", name);
+  body.set("image", new File(["test-image"], "test.png", { type: "image/png" }));
   const response = await fetch(`${adminBase}/${typeId}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ name }),
+    body,
   });
   expect(response.status).toBe(201);
-  const body = await response.json();
-  return body.id as string;
+  const result = await response.json();
+  return result.id as string;
 }
 
 async function getTypeFindings(typeId: string) {
@@ -166,8 +168,8 @@ describe("Case Type authoring via /api/admin/case-types", () => {
     const id = await createType(testName("Leerer Name"));
     const response = await renameType(id, "  ");
     expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body.error).toBe("Bitte gib einen Namen ein.");
+    const result = await response.json();
+    expect(result.error).toBe("Bitte gib einen Namen ein.");
   });
 
   it("rejects renaming to an existing case type name in German", async () => {
@@ -220,14 +222,16 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
 
   it("rejects an empty finding name in German", async () => {
     const id = await createType(testName("Leerer Befund"));
+    const body = new FormData();
+    body.set("name", "  ");
+    body.set("image", new File(["test-image"], "test.png", { type: "image/png" }));
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ name: "  " }),
+      body,
     });
     expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body.error).toBe("Bitte gib einen Namen ein.");
+    const result = await response.json();
+    expect(result.error).toBe("Bitte gib einen Namen ein.");
   });
 
   it("rejects duplicate finding names within a type in German", async () => {
@@ -235,8 +239,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
     await addFinding(id, "EKG");
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ name: "EKG" }),
+      body: (() => { const body = new FormData(); body.set("name", "EKG"); body.set("image", new File(["test-image"], "test.png", { type: "image/png" })); return body; })(),
     });
     expect(response.status).toBe(409);
     const body = await response.json();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -11,6 +11,7 @@ type FindingView = {
   name: string;
   note: string | null;
   releasedAt: string;
+  imageUrl: string;
 };
 
 type ViewerQueryData = {
@@ -60,6 +61,7 @@ function mapFindings(raw: FindingView[]): ReleasedFinding[] {
     name: f.name,
     note: f.note,
     releasedAt: new Date(f.releasedAt),
+    imageUrl: f.imageUrl,
   }));
 }
 
@@ -70,6 +72,7 @@ export function ViewerRealtime({
   initialEnded,
 }: ViewerRealtimeProps) {
   const queryClient = useQueryClient();
+  const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
   const queryKey = ["viewer", caseCode] as const;
 
   const { data } = useQuery<ViewerQueryData>({
@@ -88,6 +91,7 @@ export function ViewerRealtime({
         name: f.name,
         note: f.note,
         releasedAt: f.releasedAt.toISOString(),
+        imageUrl: f.imageUrl,
       })),
     },
   });
@@ -143,6 +147,12 @@ export function ViewerRealtime({
             {findings.map((finding) => (
               <li key={finding.id} style={feedItemStyle}>
                 <strong>{finding.name}</strong>
+                <img
+                  src={finding.imageUrl}
+                  alt={finding.name}
+                  style={{ display: "block", maxWidth: "100%", maxHeight: "18rem", objectFit: "contain", cursor: "zoom-in", marginTop: "0.75rem" }}
+                  onClick={() => setExpandedImage({ ...finding, releasedAt: finding.releasedAt.toISOString() })}
+                />
                 {finding.note ? <p>{finding.note}</p> : null}
                 <p style={{ color: "#57606a", fontSize: "0.85rem" }}>
                   Freigegeben um{" "}
@@ -156,6 +166,18 @@ export function ViewerRealtime({
           </ol>
         </>
       )}
+      {expandedImage ? (
+        <div
+          role="dialog"
+          aria-label={expandedImage.name}
+          onClick={() => setExpandedImage(null)}
+          onKeyDown={(event) => event.key === "Escape" && setExpandedImage(null)}
+          tabIndex={0}
+          style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", padding: "2rem", background: "rgb(0 0 0 / 75%)", cursor: "zoom-out" }}
+        >
+          <img src={expandedImage.imageUrl} alt={expandedImage.name} style={{ maxWidth: "100%", maxHeight: "100%" }} />
+        </div>
+      ) : null}
     </section>
   );
 }
