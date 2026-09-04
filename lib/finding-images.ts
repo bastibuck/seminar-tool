@@ -32,7 +32,8 @@ export async function uploadFindingImage(findingId: string, file: File): Promise
 }
 
 export async function removeFindingImage(path: string): Promise<void> {
-  await storage().remove([path]);
+  const { error } = await storage().remove([path]);
+  if (error && !error.message.toLowerCase().includes("not found")) throw error;
 }
 
 export async function signFindingImages(paths: string[]): Promise<Map<string, string>> {
