@@ -28,6 +28,10 @@ _Avoid_: steering side, control room, admin
 The student-facing, read-only surface showing everything released in a case. One shared device per room, joined by case code.
 _Avoid_: view part, view side, student app
 
+**Finding image inspection**:
+A temporary Viewer interaction in which students enlarge and pan the image of a released Finding to examine different areas.
+_Avoid_: image editing, image annotation
+
 **Finding**:
 A predefined item in a case with a name and exactly one image that doctors hold back and release at the right moment. The image is required for a Finding to exist, may be replaced, and is shown to Viewers when the Finding is released. It is not independently removable.
 _Avoid_: data item, entity, file, attachment
