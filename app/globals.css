@@ -99,8 +99,8 @@ h3 { margin:0; font-size:1.2rem; }
 .lightbox__title { overflow:hidden; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .lightbox__image-wrap { min-height:0; position:relative; display:grid; place-items:center; overflow:hidden; padding:1rem 0; touch-action:none; }
 .lightbox__image-wrap--loading { color:rgb(255 255 255 / 75%); }
-.lightbox__image-wrap .iiz { display:block; width:100%; height:100%; }
-.lightbox__image-wrap .iiz__img { width:auto; max-width:100%; max-height:100%; margin:auto; }
+.lightbox__image-wrap .iiz { display:block; width:auto; height:auto; max-width:100%; max-height:100%; }
+.lightbox__image-wrap .iiz__img { display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; margin:auto; }
 .lightbox__image-wrap .iiz__zoom-img { max-height:none; }
 .lightbox__controls { justify-content:center; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
