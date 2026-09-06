@@ -199,8 +199,14 @@ export function ViewerRealtime({
     const minScale = fitScaleRef.current;
     const maxScale = minScale * 8;
     const boundedScale = Math.min(maxScale, Math.max(minScale, state.scale));
-    if (boundedScale !== state.scale) {
-      void ref.setTransform(state.positionX, state.positionY, boundedScale, 0);
+    const isFitted = boundedScale === minScale;
+    const nextPosition = isFitted ? fitPositionRef.current : { x: state.positionX, y: state.positionY };
+    if (
+      boundedScale !== state.scale ||
+      nextPosition.x !== state.positionX ||
+      nextPosition.y !== state.positionY
+    ) {
+      void ref.setTransform(nextPosition.x, nextPosition.y, boundedScale, 0);
     }
     const percent = Math.round((boundedScale / minScale) * 100);
     setZoomPercent(percent);
@@ -219,6 +225,16 @@ export function ViewerRealtime({
   function resetZoom(ref: ReactZoomPanPinchContentRef) {
     announceTransformRef.current = true;
     void ref.setTransform(fitPositionRef.current.x, fitPositionRef.current.y, fitScaleRef.current, 180);
+  }
+
+  function handleImageDoubleClick(
+    event: React.MouseEvent<HTMLImageElement>,
+    ref: ReactZoomPanPinchContentRef,
+  ) {
+    event.preventDefault();
+    announceTransformRef.current = true;
+    const nextScale = Math.min(fitScaleRef.current * 8, Math.max(fitScaleRef.current, ref.state.scale * 1.5));
+    void ref.zoomToPoint(nextScale, event.clientX, event.clientY, 180);
   }
 
   async function handleImageLoad(ref: ReactZoomPanPinchContentRef) {
@@ -333,7 +349,7 @@ export function ViewerRealtime({
               <div className={`lightbox__image-wrap${imageLoaded ? "" : " lightbox__image-wrap--loading"}`}>
                 {!imageLoaded ? <span role="status">Bild wird geladen...</span> : null}
                 <TransformComponent wrapperClass="lightbox__transform-wrapper" contentClass="lightbox__transform-content">
-                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} onLoad={() => { setImageLoaded(true); void handleImageLoad(ref); }} />
+                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} onLoad={() => { setImageLoaded(true); void handleImageLoad(ref); }} onDoubleClick={(event) => handleImageDoubleClick(event, ref)} />
                 </TransformComponent>
               </div>
               <div className="lightbox__bar lightbox__controls">
