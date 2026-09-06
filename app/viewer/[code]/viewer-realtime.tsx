@@ -6,6 +6,7 @@ import {
   TransformWrapper,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
+import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
@@ -292,14 +293,47 @@ export function ViewerRealtime({
         >
           <div className="lightbox__bar">
             <span className="lightbox__title">{expandedImage.name}</span>
-            <button
-              ref={closeButtonRef}
-              className="button button--secondary"
-              type="button"
-              onClick={closeImage}
+            <div
+              className="lightbox__actions"
+              role="group"
+              aria-label="Bildansicht"
             >
-              Schließen
-            </button>
+              <button
+                className="lightbox__icon-button"
+                type="button"
+                onClick={() => transformRef.current?.zoomOut()}
+                aria-label="Verkleinern"
+                title="Verkleinern"
+              >
+                <ZoomOut aria-hidden="true" size={20} />
+              </button>
+              <button
+                className="lightbox__icon-button"
+                type="button"
+                onClick={() => transformRef.current?.zoomIn()}
+                aria-label="Vergrößern"
+                title="Vergrößern"
+              >
+                <ZoomIn aria-hidden="true" size={20} />
+              </button>
+              <button
+                className="lightbox__icon-button"
+                type="button"
+                onClick={() => transformRef.current?.resetTransform()}
+                aria-label="Ansicht zurücksetzen"
+                title="Ansicht zurücksetzen"
+              >
+                <RotateCcw aria-hidden="true" size={20} />
+              </button>
+              <button
+                ref={closeButtonRef}
+                className="button button--secondary"
+                type="button"
+                onClick={closeImage}
+              >
+                Schließen
+              </button>
+            </div>
           </div>
           <div ref={imageStageRef} className="lightbox__image-wrap">
             {fittedImageSize ? (
@@ -348,9 +382,6 @@ export function ViewerRealtime({
                 }}
               />
             )}
-          </div>
-          <div className="lightbox__bar">
-            <span>Zum Vergrößern klicken, dann ziehen</span>
           </div>
         </div>
       ) : null}
