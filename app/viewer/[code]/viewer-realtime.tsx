@@ -1,12 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  TransformComponent,
-  TransformWrapper,
-  type ReactZoomPanPinchContentRef,
-  type ReactZoomPanPinchRef,
-} from "react-zoom-pan-pinch";
+import InnerImageZoom from "react-inner-image-zoom";
 import { useEffect, useRef, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
@@ -58,17 +53,9 @@ export function ViewerRealtime({
   const queryClient = useQueryClient();
   const viewerSectionRef = useRef<HTMLElement>(null);
   const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
-  const [zoomPercent, setZoomPercent] = useState(100);
-  const [zoomAnnouncement, setZoomAnnouncement] = useState("");
   const lightboxRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const imageTriggerRef = useRef<HTMLImageElement>(null);
-  const announceTransformRef = useRef(false);
-  const fitScaleRef = useRef(1);
-  const fitPositionRef = useRef({ x: 0, y: 0 });
-  const transformRef = useRef<ReactZoomPanPinchContentRef | null>(null);
   const queryKey = ["viewer", caseCode] as const;
 
   const { data } = useQuery<ViewerQueryData>({
@@ -141,22 +128,6 @@ export function ViewerRealtime({
         return;
       }
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      const ref = transformRef.current;
-      if (ref && (event.key === "+" || event.key === "=")) {
-        event.preventDefault();
-        changeZoom(ref, 1.25);
-      } else if (ref && event.key === "-") {
-        event.preventDefault();
-        changeZoom(ref, 0.8);
-      } else if (ref && event.key === "0") {
-        event.preventDefault();
-        resetZoom(ref);
-      } else if (ref && event.key.startsWith("Arrow")) {
-        event.preventDefault();
-        const deltas = { ArrowUp: [0, 80], ArrowDown: [0, -80], ArrowLeft: [80, 0], ArrowRight: [-80, 0] } as const;
-        const [x, y] = deltas[event.key as keyof typeof deltas];
-        void ref.panBy(x, y, 120);
-      }
       if (event.key === "Tab") {
         const focusable = lightboxRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled)");
         if (!focusable?.length) return;
@@ -180,111 +151,13 @@ export function ViewerRealtime({
   }, [expandedImage]);
 
   function openImage(finding: ReleasedFinding) {
-    setImageLoaded(false);
-    setImageSize(null);
-    setZoomPercent(100);
-    setZoomAnnouncement("");
     setExpandedImage({ ...finding, releasedAt: finding.releasedAt.toISOString() });
   }
 
   function closeImage() {
-    transformRef.current?.setTransform(fitPositionRef.current.x, fitPositionRef.current.y, fitScaleRef.current, 0);
     setExpandedImage(null);
     if (imageTriggerRef.current?.isConnected) imageTriggerRef.current.focus();
     else viewerSectionRef.current?.focus();
-  }
-
-  function handleTransform(
-    ref: ReactZoomPanPinchRef,
-    state: { scale: number; positionX: number; positionY: number },
-  ) {
-    const minScale = fitScaleRef.current;
-    const maxScale = minScale * 8;
-    const boundedScale = Math.min(maxScale, Math.max(minScale, state.scale));
-    const isFitted = boundedScale === minScale;
-    const nextPosition = isFitted ? fitPositionRef.current : { x: state.positionX, y: state.positionY };
-    if (
-      boundedScale !== state.scale ||
-      nextPosition.x !== state.positionX ||
-      nextPosition.y !== state.positionY
-    ) {
-      void ref.setTransform(nextPosition.x, nextPosition.y, boundedScale, 0);
-    }
-    const percent = Math.round((boundedScale / minScale) * 100);
-    setZoomPercent(percent);
-    if (announceTransformRef.current) {
-      setZoomAnnouncement(`Zoom ${percent}%`);
-      announceTransformRef.current = false;
-    }
-  }
-
-  function changeZoom(ref: ReactZoomPanPinchContentRef, factor: number) {
-    announceTransformRef.current = true;
-    const nextScale = Math.min(fitScaleRef.current * 8, Math.max(fitScaleRef.current, ref.state.scale * factor));
-    void ref.setTransform(ref.state.positionX, ref.state.positionY, nextScale, 180);
-  }
-
-  function resetZoom(ref: ReactZoomPanPinchContentRef) {
-    announceTransformRef.current = true;
-    void ref.setTransform(fitPositionRef.current.x, fitPositionRef.current.y, fitScaleRef.current, 180);
-  }
-
-  function handleImageDoubleClick(
-    event: React.MouseEvent<HTMLImageElement>,
-    ref: ReactZoomPanPinchContentRef,
-  ) {
-    event.preventDefault();
-    announceTransformRef.current = true;
-    const nextScale = Math.min(fitScaleRef.current * 8, Math.max(fitScaleRef.current, ref.state.scale * 1.5));
-    void ref.zoomToPoint(nextScale, event.clientX, event.clientY, 180);
-  }
-
-  async function handleImageLoad(
-    event: React.SyntheticEvent<HTMLImageElement>,
-    ref: ReactZoomPanPinchContentRef,
-  ) {
-    const image = event.currentTarget;
-    const viewport = image.closest<HTMLDivElement>(".lightbox__image-wrap");
-    if (!viewport) return;
-
-    const styles = getComputedStyle(viewport);
-    const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
-    const fit = Math.min(
-      viewport.clientWidth / image.naturalWidth,
-      (viewport.clientHeight - verticalPadding) / image.naturalHeight,
-    );
-    setImageSize({
-      width: Math.round(image.naturalWidth * fit),
-      height: Math.round(image.naturalHeight * fit),
-    });
-
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    await ref.fitToView({ mode: "contain", minScale: 0.01, maxScale: 1000 });
-    fitScaleRef.current = ref.state.scale;
-    fitPositionRef.current = { x: ref.state.positionX, y: ref.state.positionY };
-    setZoomPercent(100);
-  }
-
-  function handleLightboxKeyDown(
-    event: React.KeyboardEvent<HTMLDivElement>,
-    ref: ReactZoomPanPinchContentRef,
-  ) {
-    if (event.target !== event.currentTarget) return;
-    if (event.key === "+" || event.key === "=") {
-      event.preventDefault();
-      changeZoom(ref, 1.25);
-    } else if (event.key === "-") {
-      event.preventDefault();
-      changeZoom(ref, 0.8);
-    } else if (event.key === "0") {
-      event.preventDefault();
-      resetZoom(ref);
-    } else if (event.key.startsWith("Arrow")) {
-      event.preventDefault();
-      const deltas = { ArrowUp: [0, 80], ArrowDown: [0, -80], ArrowLeft: [80, 0], ArrowRight: [-80, 0] } as const;
-      const [x, y] = deltas[event.key as keyof typeof deltas];
-      void ref.panBy(x, y, 120);
-    }
   }
 
   return (
@@ -334,55 +207,33 @@ export function ViewerRealtime({
         </>
       )}
       {expandedImage ? (
-        <TransformWrapper
-          ref={transformRef}
-          minScale={0.01}
-          maxScale={1000}
-          limitToBounds
-          centerOnInit
-          fitOnInit="contain"
-          wheel={{ step: 0.1 }}
-          pinch={{ step: 5 }}
-          panning={{ disabled: !imageLoaded || zoomPercent <= 100 }}
-          doubleClick={{ disabled: true }}
-          keyboard={{ disabled: true }}
-          onTransform={handleTransform}
-          onInit={(ref) => {
-            fitScaleRef.current = ref.state.scale;
-            fitPositionRef.current = { x: ref.state.positionX, y: ref.state.positionY };
-            setZoomPercent(100);
-          }}
+        <div
+          ref={lightboxRef}
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${expandedImage.name} vergrößert`}
+          tabIndex={-1}
         >
-          {(ref) => (
-            <div
-              ref={lightboxRef}
-              className="lightbox"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`${expandedImage.name} vergrößert`}
-              tabIndex={-1}
-              onKeyDown={(event) => handleLightboxKeyDown(event, ref)}
-            >
               <div className="lightbox__bar">
                 <span className="lightbox__title">{expandedImage.name}</span>
                 <button ref={closeButtonRef} className="button button--secondary" type="button" onClick={closeImage}>Schließen</button>
               </div>
-              <div className={`lightbox__image-wrap${imageLoaded ? "" : " lightbox__image-wrap--loading"}`}>
-                {!imageLoaded ? <span role="status">Bild wird geladen...</span> : null}
-                <TransformComponent wrapperClass="lightbox__transform-wrapper" contentClass="lightbox__transform-content">
-                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} style={imageSize ?? undefined} onLoad={(event) => { void handleImageLoad(event, ref).then(() => setImageLoaded(true)); }} onDoubleClick={(event) => handleImageDoubleClick(event, ref)} />
-                </TransformComponent>
+              <div className="lightbox__image-wrap">
+                <InnerImageZoom
+                  src={expandedImage.imageUrl}
+                  zoomSrc={expandedImage.imageUrl}
+                  moveType="drag"
+                  zoomType="click"
+                  zoomPreload
+                  hideHint
+                  imgAttributes={{ alt: expandedImage.name }}
+                />
               </div>
-              <div className="lightbox__bar lightbox__controls">
-                <button className="button button--secondary" type="button" aria-label="Verkleinern" onClick={() => changeZoom(ref, 0.8)} disabled={!imageLoaded}>−</button>
-                <span aria-hidden="true">{zoomPercent}%</span>
-                <button className="button button--secondary" type="button" aria-label="Vergrößern" onClick={() => changeZoom(ref, 1.25)} disabled={!imageLoaded}>+</button>
-                <button className="button button--secondary" type="button" onClick={() => resetZoom(ref)} disabled={!imageLoaded}>Zurücksetzen</button>
-                <span className="sr-only" aria-live="polite">{zoomAnnouncement}</span>
+              <div className="lightbox__bar">
+                <span>Zum Vergrößern klicken, dann ziehen</span>
               </div>
-            </div>
-          )}
-        </TransformWrapper>
+        </div>
       ) : null}
     </section>
   );
