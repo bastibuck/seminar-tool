@@ -44,6 +44,9 @@ Every Finding has its image path required at the database level after the existi
 
 Finding creation and image replacement happen on a dedicated admin Finding page. The Viewer receives a signed image URL only for a released Finding; unreleased Findings and their image paths are not exposed.
 
+**Image preview**:
+A temporary preview of a valid newly selected Finding image shown in the admin Finding editor before upload. It represents draft form state, not a persisted Finding image; cancelling the editor discards it, while a successful save returns the editor to the persisted image state.
+
 The Cockpit may preview a Finding image before release. Replacing an image does not change any Case's release state and becomes visible to an already-running Case on the next Viewer page load. The Case Type editor keeps Finding previews, edit links, reorder controls, and deletion; deleting a Finding warns that its image will also be deleted. The Finding name is the image's alternative text in the Viewer.
 
 **Release**:
