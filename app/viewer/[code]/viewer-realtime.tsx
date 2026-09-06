@@ -215,8 +215,8 @@ export function ViewerRealtime({
       {expandedImage ? (
         <TransformWrapper
           ref={transformRef}
-          initialScale={1}
-          minScale={1}
+          initialScale={0.01}
+          minScale={0.01}
           maxScale={8}
           limitToBounds
           centerZoomedOut
