@@ -22,7 +22,7 @@
     "postgres": "3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-inner-image-zoom": "^4.0.1"
+    "react-zoom-pan-pinch": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "26.4.1",

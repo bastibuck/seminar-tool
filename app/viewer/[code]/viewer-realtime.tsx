@@ -1,7 +1,11 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import InnerImageZoom from "react-inner-image-zoom";
+import {
+  TransformComponent,
+  TransformWrapper,
+  type ReactZoomPanPinchContentRef,
+} from "react-zoom-pan-pinch";
 import { useEffect, useRef, useState } from "react";
 
 import type { ReleasedFinding } from "@/lib/cases";
@@ -56,6 +60,7 @@ export function ViewerRealtime({
   const lightboxRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const imageTriggerRef = useRef<HTMLImageElement>(null);
+  const transformRef = useRef<ReactZoomPanPinchContentRef | null>(null);
   const queryKey = ["viewer", caseCode] as const;
 
   const { data } = useQuery<ViewerQueryData>({
@@ -155,6 +160,7 @@ export function ViewerRealtime({
   }
 
   function closeImage() {
+    transformRef.current?.resetTransform(0);
     setExpandedImage(null);
     if (imageTriggerRef.current?.isConnected) imageTriggerRef.current.focus();
     else viewerSectionRef.current?.focus();
@@ -207,33 +213,43 @@ export function ViewerRealtime({
         </>
       )}
       {expandedImage ? (
-        <div
-          ref={lightboxRef}
-          className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${expandedImage.name} vergrößert`}
-          tabIndex={-1}
+        <TransformWrapper
+          ref={transformRef}
+          initialScale={1}
+          minScale={1}
+          maxScale={8}
+          limitToBounds
+          centerZoomedOut
+          centerOnInit
+          fitOnInit="contain"
+          wheel={{ step: 0.1 }}
+          pinch={{ step: 5 }}
+          panning={{ disabled: false, velocityDisabled: true }}
+          doubleClick={{ step: 0.5, mode: "zoomIn", animationTime: 180 }}
+          keyboard={{ disabled: true }}
         >
+          <div
+            ref={lightboxRef}
+            className="lightbox"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${expandedImage.name} vergrößert`}
+            tabIndex={-1}
+          >
               <div className="lightbox__bar">
                 <span className="lightbox__title">{expandedImage.name}</span>
                 <button ref={closeButtonRef} className="button button--secondary" type="button" onClick={closeImage}>Schließen</button>
               </div>
               <div className="lightbox__image-wrap">
-                <InnerImageZoom
-                  src={expandedImage.imageUrl}
-                  zoomSrc={expandedImage.imageUrl}
-                  moveType="drag"
-                  zoomType="click"
-                  zoomPreload
-                  hideHint
-                  imgAttributes={{ alt: expandedImage.name }}
-                />
+                <TransformComponent wrapperClass="lightbox__transform-wrapper" contentClass="lightbox__transform-content">
+                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className="lightbox__image" />
+                </TransformComponent>
               </div>
               <div className="lightbox__bar">
                 <span>Zum Vergrößern klicken, dann ziehen</span>
               </div>
-        </div>
+          </div>
+        </TransformWrapper>
       ) : null}
     </section>
   );

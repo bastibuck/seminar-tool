@@ -1,5 +1,4 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap");
-@import "react-inner-image-zoom/lib/styles.min.css";
 
 :root { --ink:#102a43; --muted:#62758a; --line:#d9e2ec; --paper:#f5f8fc; --panel:#fff; --teal:#1769aa; --teal-dark:#0b4f8a; --mint:#e0effd; --danger:#a53438; --danger-pale:#fff0f0; }
 * { box-sizing:border-box; }
@@ -99,9 +98,10 @@ h3 { margin:0; font-size:1.2rem; }
 .lightbox__title { overflow:hidden; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .lightbox__image-wrap { min-height:0; position:relative; display:grid; place-items:center; overflow:hidden; padding:1rem 0; touch-action:none; }
 .lightbox__image-wrap--loading { color:rgb(255 255 255 / 75%); }
-.lightbox__image-wrap .iiz { display:block; width:auto; height:auto; max-width:100%; max-height:100%; }
-.lightbox__image-wrap .iiz__img { display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; margin:auto; }
-.lightbox__image-wrap .iiz__zoom-img { max-height:none; }
+.lightbox__transform-wrapper { width:100%; height:100%; }
+.lightbox__transform-content { width:max-content; height:max-content; }
+.lightbox__image { display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; user-select:none; cursor:grab; }
+.lightbox__image:active { cursor:grabbing; }
 .lightbox__controls { justify-content:center; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .lightbox .button--secondary { background:rgb(255 255 255 / 12%); border-color:rgb(255 255 255 / 30%); color:#fff; }
