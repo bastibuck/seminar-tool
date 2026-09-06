@@ -157,7 +157,7 @@ export function ViewerRealtime({
         void ref.panBy(x, y, 120);
       }
       if (event.key === "Tab") {
-        const focusable = lightboxRef.current?.querySelectorAll<HTMLElement>("button");
+        const focusable = lightboxRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled)");
         if (!focusable?.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -189,10 +189,16 @@ export function ViewerRealtime({
   }
 
   function handleTransform(
-    _ref: ReactZoomPanPinchRef,
+    ref: ReactZoomPanPinchRef,
     state: { scale: number; positionX: number; positionY: number },
   ) {
-    const percent = Math.round((state.scale / fitScaleRef.current) * 100);
+    const minScale = fitScaleRef.current;
+    const maxScale = minScale * 8;
+    const boundedScale = Math.min(maxScale, Math.max(minScale, state.scale));
+    if (boundedScale !== state.scale) {
+      void ref.setTransform(state.positionX, state.positionY, boundedScale, 0);
+    }
+    const percent = Math.round((boundedScale / minScale) * 100);
     setZoomPercent(percent);
     if (announceTransformRef.current) {
       setZoomAnnouncement(`Zoom ${percent}%`);
