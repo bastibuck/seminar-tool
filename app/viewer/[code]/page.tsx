@@ -22,9 +22,6 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
     <main className="shell">
       <p className="eyebrow">Seminarraum</p>
       <h1>{viewerCase.name}</h1>
-      <p>
-        Fallcode: <span className="code">{formatCaseCode(code)}</span>
-      </p>
       <ViewerRealtime
         caseId={viewerCase.caseId}
         caseCode={formatCaseCode(code)}

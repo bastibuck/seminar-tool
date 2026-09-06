@@ -58,6 +58,7 @@ export function CodeInput({
       maxLength={maxLength}
       placeholder={placeholder}
       style={style}
+      autoFocus
       autoCapitalize="characters"
       autoCorrect="off"
       spellCheck={false}

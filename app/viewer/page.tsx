@@ -32,7 +32,6 @@ export default async function ViewerJoinPage({
         </p>
       ) : null}
       <form className="surface form-card viewer-join-form" method="post" action="/api/viewer">
-        <div className="viewer-join-form__mark" aria-hidden="true">+</div>
         <div className="viewer-join-form__intro">
           <label htmlFor="code">Fallcode eingeben</label>
           <p>Der Code steht im Cockpit der leitenden Person.</p>
