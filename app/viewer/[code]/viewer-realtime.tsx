@@ -59,6 +59,7 @@ export function ViewerRealtime({
   const viewerSectionRef = useRef<HTMLElement>(null);
   const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [zoomAnnouncement, setZoomAnnouncement] = useState("");
   const lightboxRef = useRef<HTMLDivElement>(null);
@@ -180,6 +181,7 @@ export function ViewerRealtime({
 
   function openImage(finding: ReleasedFinding) {
     setImageLoaded(false);
+    setImageSize(null);
     setZoomPercent(100);
     setZoomAnnouncement("");
     setExpandedImage({ ...finding, releasedAt: finding.releasedAt.toISOString() });
@@ -237,7 +239,26 @@ export function ViewerRealtime({
     void ref.zoomToPoint(nextScale, event.clientX, event.clientY, 180);
   }
 
-  async function handleImageLoad(ref: ReactZoomPanPinchContentRef) {
+  async function handleImageLoad(
+    event: React.SyntheticEvent<HTMLImageElement>,
+    ref: ReactZoomPanPinchContentRef,
+  ) {
+    const image = event.currentTarget;
+    const viewport = image.closest<HTMLDivElement>(".lightbox__image-wrap");
+    if (!viewport) return;
+
+    const styles = getComputedStyle(viewport);
+    const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+    const fit = Math.min(
+      viewport.clientWidth / image.naturalWidth,
+      (viewport.clientHeight - verticalPadding) / image.naturalHeight,
+    );
+    setImageSize({
+      width: Math.round(image.naturalWidth * fit),
+      height: Math.round(image.naturalHeight * fit),
+    });
+
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await ref.fitToView({ mode: "contain", minScale: 0.01, maxScale: 1000 });
     fitScaleRef.current = ref.state.scale;
     fitPositionRef.current = { x: ref.state.positionX, y: ref.state.positionY };
@@ -349,7 +370,7 @@ export function ViewerRealtime({
               <div className={`lightbox__image-wrap${imageLoaded ? "" : " lightbox__image-wrap--loading"}`}>
                 {!imageLoaded ? <span role="status">Bild wird geladen...</span> : null}
                 <TransformComponent wrapperClass="lightbox__transform-wrapper" contentClass="lightbox__transform-content">
-                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} onLoad={() => { setImageLoaded(true); void handleImageLoad(ref); }} onDoubleClick={(event) => handleImageDoubleClick(event, ref)} />
+                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} style={imageSize ?? undefined} onLoad={(event) => { void handleImageLoad(event, ref).then(() => setImageLoaded(true)); }} onDoubleClick={(event) => handleImageDoubleClick(event, ref)} />
                 </TransformComponent>
               </div>
               <div className="lightbox__bar lightbox__controls">
