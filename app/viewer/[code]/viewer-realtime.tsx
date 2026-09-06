@@ -348,8 +348,8 @@ export function ViewerRealtime({
                 centerOnInit
                 wheel={{ step: 0.1 }}
                 pinch={{ step: 5 }}
-                panning={{ disabled: false, velocityDisabled: true }}
-                doubleClick={{ step: 0.5, mode: "zoomIn", animationTime: 180 }}
+                panning={{ disabled: false, velocityDisabled: false }}
+                doubleClick={{ step: 1, mode: "zoomIn", animationTime: 180 }}
                 keyboard={{ disabled: true }}
               >
                 <TransformComponent
