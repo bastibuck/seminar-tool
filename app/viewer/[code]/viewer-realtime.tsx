@@ -161,7 +161,11 @@ export function ViewerRealtime({
         if (!focusable?.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        const focusIsInside = lightboxRef.current?.contains(document.activeElement);
+        if (!focusIsInside) {
+          event.preventDefault();
+          first.focus();
+        } else if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
         } else if (!event.shiftKey && document.activeElement === last) {
@@ -215,6 +219,13 @@ export function ViewerRealtime({
   function resetZoom(ref: ReactZoomPanPinchContentRef) {
     announceTransformRef.current = true;
     void ref.setTransform(fitPositionRef.current.x, fitPositionRef.current.y, fitScaleRef.current, 180);
+  }
+
+  async function handleImageLoad(ref: ReactZoomPanPinchContentRef) {
+    await ref.fitToView({ mode: "contain", minScale: 0.01, maxScale: 1000 });
+    fitScaleRef.current = ref.state.scale;
+    fitPositionRef.current = { x: ref.state.positionX, y: ref.state.positionY };
+    setZoomPercent(100);
   }
 
   function handleLightboxKeyDown(
@@ -289,7 +300,7 @@ export function ViewerRealtime({
         <TransformWrapper
           ref={transformRef}
           minScale={0.01}
-          maxScale={80}
+          maxScale={1000}
           limitToBounds
           centerOnInit
           fitOnInit="contain"
@@ -322,7 +333,7 @@ export function ViewerRealtime({
               <div className={`lightbox__image-wrap${imageLoaded ? "" : " lightbox__image-wrap--loading"}`}>
                 {!imageLoaded ? <span role="status">Bild wird geladen...</span> : null}
                 <TransformComponent wrapperClass="lightbox__transform-wrapper" contentClass="lightbox__transform-content">
-                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} onLoad={() => setImageLoaded(true)} />
+                  <img src={expandedImage.imageUrl} alt={expandedImage.name} className={`lightbox__image${zoomPercent > 100 ? " lightbox__image--zoomed" : ""}`} onLoad={() => { setImageLoaded(true); void handleImageLoad(ref); }} />
                 </TransformComponent>
               </div>
               <div className="lightbox__bar lightbox__controls">
