@@ -6,9 +6,13 @@ import { BASE_URL } from "../setup/server-address";
 
 export const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{4}-[2-9A-HJKMNP-TV-Z]{4}/;
 
-export const TEST_DATABASE_URL =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const testDatabaseUrl = process.env.DATABASE_URL;
+
+if (!testDatabaseUrl) {
+  throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and set it.");
+}
+
+export const TEST_DATABASE_URL = testDatabaseUrl;
 
 export async function getStartPage(): Promise<string> {
   const response = await fetch(`${BASE_URL}/`);
