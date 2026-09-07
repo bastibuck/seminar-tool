@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { findingNameIsAvailable, getFinding, renameFinding, replaceFindingImage } from "@/lib/admin";
 import { validateFindingImage } from "@/lib/finding-images";
+import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,8 @@ export async function GET(_: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const id = (await context.params).id;
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "");

@@ -10,6 +10,7 @@ import {
 
 import { jsonError } from "../../http";
 import { validateFindingImage } from "@/lib/finding-images";
+import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -34,6 +35,8 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { id } = await context.params;
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
@@ -59,6 +62,8 @@ export async function PATCH(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { id } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
@@ -81,6 +86,8 @@ export async function DELETE(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { id } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
@@ -103,6 +110,8 @@ export async function PUT(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { id } = await context.params;
   const formData = await request.formData();
   const findingA = String(formData.get("findingA") ?? "").trim();
