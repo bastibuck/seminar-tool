@@ -5,8 +5,12 @@ import { connectTestDb } from "../support/cases";
 const BASE_URL = "http://localhost:3112";
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
 
-async function request(path: string, method: string): Promise<Response> {
-  return fetch(`${BASE_URL}${path}`, { method });
+async function request(
+  path: string,
+  method: string,
+  body?: URLSearchParams,
+): Promise<Response> {
+  return fetch(`${BASE_URL}${path}`, { method, body });
 }
 
 describe("disabled mutation safety lock", () => {
@@ -25,15 +29,25 @@ describe("disabled mutation safety lock", () => {
       [`/api/admin/findings/${UNKNOWN_ID}`, "PATCH"],
     ] as const;
 
-    const before = await counts();
+    const marker = `Safety lock ${crypto.randomUUID()}`;
     const responses = await Promise.all(
-      mutations.map(([path, method]) => request(path, method)),
+      mutations.map(([path, method], index) =>
+        request(
+          path,
+          method,
+          index === 0
+            ? new URLSearchParams({ name: marker, caseTypeId: UNKNOWN_ID })
+            : index === 3
+              ? new URLSearchParams({ name: marker })
+              : undefined,
+        ),
+      ),
     );
 
     expect(responses.map((response) => response.status)).toEqual(
       mutations.map(() => 503),
     );
-    expect(await counts()).toEqual(before);
+    expect(await countMarker(marker)).toBe(0);
   });
 
   it("does not block viewer lookup, reads, or the cleanup route", async () => {
@@ -52,24 +66,16 @@ describe("disabled mutation safety lock", () => {
   });
 });
 
-async function counts() {
+async function countMarker(marker: string) {
   const sql = connectTestDb();
   try {
-    const rows = await sql<{
-      cases: string;
-      case_types: string;
-      findings: string;
-      releases: string;
-      ended_cases: string;
-    }[]>`
-      select
-        (select count(*) from cases)::text as cases,
-        (select count(*) from case_types)::text as case_types,
-        (select count(*) from findings)::text as findings,
-        (select count(*) from releases)::text as releases,
-        (select count(*) from cases where ended_at is not null)::text as ended_cases
+    const rows = await sql<{ count: string }[]>`
+      select (
+        (select count(*) from cases where name = ${marker}) +
+        (select count(*) from case_types where name = ${marker})
+      )::text as count
     `;
-    return rows[0];
+    return Number(rows[0]!.count);
   } finally {
     await sql.end();
   }

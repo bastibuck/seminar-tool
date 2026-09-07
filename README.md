@@ -27,7 +27,7 @@ The Supabase client reads two vars. Copy `.env.example` to `.env.local` (already
 
 `MUTATIONS_ENABLED` is a fail-closed deployment safety lock for user-triggered writes. Set it to exactly `true` for local development or a demo deployment where writes are intentionally enabled. Leave it unset or use any other value in production to return `503 Service Unavailable` from mutation routes. Changing the Vercel environment variable requires a redeploy; this is not a runtime toggle. The integration test server sets it explicitly to `true`.
 
-`NEXT_PUBLIC_SUPABASE_URL` defaults to the local stack (`http://127.0.0.1:54321`) when unset, so only the anon key strictly needs setting. If it is missing, the app fails loudly instead of falling back to a hardcoded key. Realtime integration tests read the same vars, so set them before running `npm test`.
+`NEXT_PUBLIC_SUPABASE_URL` defaults to the local stack (`http://127.0.0.1:54321`) when unset. The app fails loudly when the anon key or `DATABASE_URL` is missing. Realtime integration tests read the same vars, so set them before running `npm test`.
 
 The home page is the cockpit start page: pick a Case Type (the database is seeded with an example, and admins can author more), name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
 
@@ -53,7 +53,7 @@ Useful extras:
 
 ## Database
 
-Schema lives in version-controlled migrations under `supabase/migrations/`; the app connects directly to Postgres via `DATABASE_URL` (default: `postgresql://postgres:postgres@127.0.0.1:54322/postgres`, overridable in `.env.local`).
+Schema lives in version-controlled migrations under `supabase/migrations/`; the app connects directly to Postgres via the required `DATABASE_URL`. For local development, set it in `.env.local` to the connection details for the Supabase stack started by `npm run db:start` (normally `postgresql://postgres:postgres@127.0.0.1:54322/postgres`).
 
 ## Nightly cleanup
 
