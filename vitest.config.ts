@@ -21,6 +21,13 @@ export default defineConfig(({ mode }) => {
             globalSetup: ["./tests/setup/server.ts"],
           },
         },
+        {
+          test: {
+            name: "safety-lock",
+            include: ["tests/safety-lock/**/*.test.ts"],
+            globalSetup: ["./tests/setup/disabled-server.ts"],
+          },
+        },
       ],
     },
   };

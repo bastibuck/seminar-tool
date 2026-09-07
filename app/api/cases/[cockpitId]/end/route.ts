@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { endCase } from "@/lib/cases";
+import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -10,6 +11,8 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { cockpitId } = await context.params;
 
   const result = await endCase(cockpitId);

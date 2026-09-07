@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
+import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -14,6 +15,8 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const { cockpitId } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();

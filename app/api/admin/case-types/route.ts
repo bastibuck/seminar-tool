@@ -6,6 +6,7 @@ import {
   renameCaseType,
 } from "@/lib/admin";
 import { listCaseTypes } from "@/lib/cases";
+import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 import { jsonError } from "../http";
 
@@ -15,6 +16,8 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
   const result = await createCaseType(name);
@@ -32,6 +35,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 export async function PUT(request: Request): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -52,6 +57,8 @@ export async function PUT(request: Request): Promise<NextResponse> {
 }
 
 export async function DELETE(request: Request): Promise<NextResponse> {
+  if (!mutationsEnabled()) return mutationsDisabledResponse();
+
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();
   const result = await deleteCaseType(id);
