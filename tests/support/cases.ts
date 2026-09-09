@@ -6,6 +6,9 @@ import { BASE_URL } from "../setup/server-address";
 
 export const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{4}-[2-9A-HJKMNP-TV-Z]{4}/;
 
+const CODE_ELEMENT_PATTERN =
+  /<strong class="code">([2-9A-HJKMNP-TV-Z]{4}-[2-9A-HJKMNP-TV-Z]{4})<\/strong>/;
+
 const testDatabaseUrl = process.env.DATABASE_URL;
 
 if (!testDatabaseUrl) {
@@ -43,9 +46,9 @@ export async function createCase(input: {
 }
 
 export function extractCode(cockpitHtml: string): string {
-  const match = cockpitHtml.match(CODE_PATTERN);
+  const match = cockpitHtml.match(CODE_ELEMENT_PATTERN);
   if (!match) throw new Error("No short code shown on the cockpit page");
-  return match[0];
+  return match[1];
 }
 
 export function resolveLocation(location: string): string {
