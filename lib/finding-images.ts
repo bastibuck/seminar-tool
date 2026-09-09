@@ -4,7 +4,7 @@ import { getSupabaseServiceRoleKey, getSupabaseUrl } from "./supabase-config";
 export { FINDING_IMAGE_MAX_BYTES, FINDING_IMAGE_TYPES, validateFindingImage } from "./finding-image-validation";
 
 export const FINDING_IMAGE_BUCKET = "finding-images";
-export const FINDING_IMAGE_URL_LIFETIME = 24 * 60 * 60;
+export const FINDING_IMAGE_URL_LIFETIME = 10 * 60;
 
 function storage() {
   return createClient(getSupabaseUrl(), getSupabaseServiceRoleKey()).storage.from(FINDING_IMAGE_BUCKET);

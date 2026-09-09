@@ -44,6 +44,8 @@ Every Finding has its image path required at the database level after the existi
 
 Finding creation and image replacement happen on a dedicated admin Finding page. The Viewer receives a signed image URL only for a released Finding; unreleased Findings and their image paths are not exposed.
 
+Signed Finding image URLs are minted 10 minutes in advance of use: every Viewer fetch (initial join, late join, Realtime-triggered refetch) produces fresh URLs that expire 10 minutes after mint. Un-release and case expiry only delete the `releases` row (and later the image itself); a URL already handed out stays fetchable only until its 10-minute TTL passes. This bounded post-unrelease exposure window of up to 10 minutes after mint is an accepted cap, deliberately chosen over a true retraction.
+
 **Image preview**:
 A temporary preview of a valid newly selected Finding image shown in the admin Finding editor before upload. It represents draft form state, not a persisted Finding image; cancelling the editor discards it, while a successful save returns the editor to the persisted image state.
 
