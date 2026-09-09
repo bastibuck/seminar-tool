@@ -23,10 +23,10 @@ export async function getCaseTypeDetail(
     where case_type_id = ${id} order by position
   `;
 
-  const imageUrls = await signFindingImages(findings.map((finding) => finding.imagePath));
+  const imageUrls = await signFindingImages(findings.map((finding) => ({ id: finding.id, path: finding.imagePath })));
   return {
     name: rows[0]!.name,
-    findings: findings.map((finding) => ({ ...finding, imageUrl: imageUrls.get(finding.imagePath)! })),
+    findings: findings.map((finding) => ({ ...finding, imageUrl: imageUrls.get(finding.imagePath) ?? "" })),
   };
 }
 
@@ -174,8 +174,8 @@ export async function getFinding(findingId: string) {
   `;
   const finding = rows[0];
   if (!finding) return null;
-  const imageUrls = await signFindingImages([finding.imagePath]);
-  return { ...finding, imageUrl: imageUrls.get(finding.imagePath)! };
+  const imageUrls = await signFindingImages([{ id: finding.id, path: finding.imagePath }]);
+  return { ...finding, imageUrl: imageUrls.get(finding.imagePath) ?? "" };
 }
 
 export async function replaceFindingImage(findingId: string, image: File): Promise<"ok" | "unknown-finding"> {
