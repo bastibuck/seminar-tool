@@ -5,6 +5,7 @@ import {
   connectTestDb,
   createCase,
   getStartPage,
+  resolveLocation,
 } from "../support/cases";
 
 let sql: ReturnType<typeof connectTestDb>;
@@ -341,7 +342,7 @@ describe("admin pages", () => {
 async function createAndGetCockpit(caseTypeId: string) {
   const response = await createCase({ caseTypeId, name: "Admin Freigabe" });
   expect(response.status).toBe(303);
-  const cockpitUrl = response.headers.get("location")!;
+  const cockpitUrl = resolveLocation(response.headers.get("location")!);
   return { cockpitUrl };
 }
 

@@ -9,6 +9,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  resolveLocation,
 } from "../support/cases";
 import {
   getSupabaseAnonKey,
@@ -45,7 +46,7 @@ async function createFreshCase(name: string): Promise<{
   const caseTypeId = extractCaseTypeId(await getStartPage());
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
-  const cockpitUrl = response.headers.get("location")!;
+  const cockpitUrl = resolveLocation(response.headers.get("location")!);
   const cockpitHtml = await getCockpit(cockpitUrl);
   const code = extractCode(cockpitHtml);
 
