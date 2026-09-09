@@ -26,19 +26,33 @@ export async function removeFindingImage(path: string): Promise<void> {
   if (error && !error.message.toLowerCase().includes("not found")) throw error;
 }
 
-export async function signFindingImages(paths: string[]): Promise<Map<string, string>> {
-  if (paths.length === 0) return new Map();
-  await Promise.all(paths.map(async (path) => {
+export type FindingIdPath = { id: string; path: string };
+
+const FINDING_PATH_RE = /^findings\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z]+|placeholder\.svg)$/;
+
+export function isOwnedFindingPath(findingId: string, path: string): boolean {
+  return FINDING_PATH_RE.test(path) && path.startsWith(`findings/${findingId}/`);
+}
+
+export async function signFindingImages(items: FindingIdPath[]): Promise<Map<string, string | null>> {
+  if (items.length === 0) return new Map();
+  const valid = items.filter(({ id, path }) => isOwnedFindingPath(id, path));
+  await Promise.all(valid.map(async ({ path }) => {
     if (!path.endsWith("/placeholder.svg")) return;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%" height="100%" fill="#eaeef2"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="28" fill="#57606a">Finding</text></svg>`;
     const { error } = await storage().upload(path, svg, { contentType: "image/svg+xml", upsert: false });
     if (error && !error.message.toLowerCase().includes("already exists")) throw error;
   }));
+  const paths = valid.map(({ path }) => path);
   const { data, error } = await storage().createSignedUrls(paths, FINDING_IMAGE_URL_LIFETIME);
   if (error) throw error;
-  return new Map(
+  const signed = new Map<string, string | null>(
     data.flatMap((item) =>
       item.path && item.signedUrl ? [[item.path, item.signedUrl] as const] : [],
     ),
   );
+  for (const { path } of items) {
+    if (!signed.has(path)) signed.set(path, null);
+  }
+  return signed;
 }

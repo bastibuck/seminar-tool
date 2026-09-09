@@ -154,7 +154,7 @@ export async function getCaseByCode(
   const row = rows[0];
   if (!row) return null;
 
-  const findings = await sql<Omit<ReleasedFinding, "imageUrl"> & { imagePath: string }[]>`
+  const findings = await sql<{ id: string; name: string; note: string | null; releasedAt: Date; imagePath: string }[]>`
     select f.id, f.name, f.image_path as "imagePath", r.note, r.released_at as "releasedAt"
     from findings f
     join releases r on r.finding_id = f.id and r.case_id = ${row.id}
@@ -164,14 +164,14 @@ export async function getCaseByCode(
     order by r.released_at
   `;
 
-  const imageUrls = await signFindingImages(findings.map((finding) => finding.imagePath));
+  const imageUrls = await signFindingImages(findings.map((finding) => ({ id: finding.id, path: finding.imagePath })));
   return {
     caseId: row.id,
     name: row.name,
     endedAt: row.endedAt,
     findings: findings.map(({ imagePath, ...finding }) => ({
       ...finding,
-      imageUrl: imageUrls.get(imagePath)!,
+      imageUrl: imageUrls.get(imagePath) ?? "",
     })) as ReleasedFinding[],
   };
 }
