@@ -8,6 +8,7 @@ import {
   expectOk,
   extractCaseTypeId,
   getStartPage,
+  resolveLocation,
   toggleFinding,
 } from "../support/cases";
 
@@ -83,7 +84,7 @@ async function createCaseOfType(
 ): Promise<string> {
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
-  return response.headers.get("location")!;
+  return resolveLocation(response.headers.get("location")!);
 }
 
 async function createFreshCase(name: string): Promise<{

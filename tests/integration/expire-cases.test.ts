@@ -7,6 +7,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  resolveLocation,
   toggleFinding,
 } from "../support/cases";
 
@@ -24,7 +25,7 @@ async function createFreshCase(name: string) {
   const caseTypeId = extractCaseTypeId(await getStartPage());
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
-  const cockpitUrl = response.headers.get("location")!;
+  const cockpitUrl = resolveLocation(response.headers.get("location")!);
   const cockpitResponse = await fetch(cockpitUrl);
   expect(cockpitResponse.status).toBe(200);
   const code = extractCode(await cockpitResponse.text());

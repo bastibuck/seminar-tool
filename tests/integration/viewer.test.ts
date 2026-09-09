@@ -7,6 +7,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  resolveLocation,
   toggleFinding,
 } from "../support/cases";
 
@@ -23,7 +24,7 @@ async function createFreshCase(name: string): Promise<{
   const caseTypeId = extractCaseTypeId(await getStartPage());
   const response = await createCase({ caseTypeId, name });
   expect(response.status).toBe(303);
-  const cockpitUrl = response.headers.get("location")!;
+  const cockpitUrl = resolveLocation(response.headers.get("location")!);
   const code = extractCode(await getCockpit(cockpitUrl));
   return { cockpitUrl, code };
 }
@@ -75,7 +76,7 @@ describe("viewer join page", () => {
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
     expect(location).toContain("/viewer?error=");
-    const errorPage = await fetch(location);
+    const errorPage = await fetch(resolveLocation(location));
     expect(errorPage.status).toBe(200);
     const html = await errorPage.text();
     expect(html).toContain("Fallcode nicht gefunden");
@@ -92,7 +93,7 @@ describe("viewer join page", () => {
     });
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location).toBe(`${BASE_URL}/viewer/${code}`);
+    expect(location).toBe(`/viewer/${code}`);
   });
 
   it("accepts an 8-character code typed without the dash", async () => {
@@ -107,7 +108,7 @@ describe("viewer join page", () => {
     });
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location).toBe(`${BASE_URL}/viewer/${code}`);
+    expect(location).toBe(`/viewer/${code}`);
   });
 });
 

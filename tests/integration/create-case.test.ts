@@ -11,6 +11,7 @@ import {
   extractCaseTypeId,
   extractCode,
   getStartPage,
+  resolveLocation,
 } from "../support/cases";
 
 const SEEDED_TYPE_NAME = "Akuter Thoraxschmerz";
@@ -40,11 +41,9 @@ describe("POST /api/cases", () => {
     expect(response.status).toBe(303);
 
     const location = response.headers.get("location")!;
-    expect(location).toMatch(
-      new RegExp(`^${BASE_URL}/cockpit/[0-9a-f-]{36}$`),
-    );
+    expect(location).toMatch(new RegExp(`^/cockpit/[0-9a-f-]{36}$`));
 
-    const cockpit = await fetch(location);
+    const cockpit = await fetch(resolveLocation(location));
     expect(cockpit.status).toBe(200);
     const html = await cockpit.text();
 
@@ -61,8 +60,8 @@ describe("POST /api/cases", () => {
     const first = await createCase({ caseTypeId, name: "Raum 1" });
     const second = await createCase({ caseTypeId, name: "Raum 2" });
 
-    const firstUrl = first.headers.get("location")!;
-    const secondUrl = second.headers.get("location")!;
+    const firstUrl = resolveLocation(first.headers.get("location")!);
+    const secondUrl = resolveLocation(second.headers.get("location")!);
     expect(firstUrl).not.toBe(secondUrl);
 
     const firstHtml = await (await fetch(firstUrl)).text();
@@ -86,7 +85,7 @@ describe("POST /api/cases", () => {
         name: `Kollisionsfall ${i}`,
       });
       expect(response.status).toBe(303);
-      const html = await (await fetch(response.headers.get("location")!)).text();
+      const html = await (await fetch(resolveLocation(response.headers.get("location")!))).text();
       codes.add(extractCode(html));
     }
 
@@ -100,9 +99,9 @@ describe("POST /api/cases", () => {
 
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location.startsWith(`${BASE_URL}/?error=`)).toBe(true);
+    expect(location.startsWith(`/?error=`)).toBe(true);
 
-    const html = await (await fetch(location)).text();
+    const html = await (await fetch(resolveLocation(location))).text();
     expect(html).toContain("Bitte gib einen Fallnamen ein.");
   });
 
@@ -114,9 +113,9 @@ describe("POST /api/cases", () => {
 
     expect(response.status).toBe(303);
     const location = response.headers.get("location")!;
-    expect(location.startsWith(`${BASE_URL}/?error=`)).toBe(true);
+    expect(location.startsWith(`/?error=`)).toBe(true);
 
-    const html = await (await fetch(location)).text();
+    const html = await (await fetch(resolveLocation(location))).text();
     expect(html).toContain("Unbekannter Falltyp.");
   });
 });

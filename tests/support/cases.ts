@@ -48,6 +48,10 @@ export function extractCode(cockpitHtml: string): string {
   return match[0];
 }
 
+export function resolveLocation(location: string): string {
+  return new URL(location, BASE_URL).toString();
+}
+
 export async function toggleFinding(input: {
   cockpitUrl: string;
   findingId: string;
