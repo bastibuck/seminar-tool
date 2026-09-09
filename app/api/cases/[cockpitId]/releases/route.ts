@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { notifyViewerOfChange } from "@/lib/broadcast";
 import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
 import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
@@ -44,6 +45,8 @@ export async function POST(
   if (result.status === "unknown-finding") {
     return jsonError("Befund nicht gefunden.", 404);
   }
+
+  notifyViewerOfChange(result.caseId);
 
   return NextResponse.json({
     ok: true,

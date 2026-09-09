@@ -9,6 +9,10 @@ import {
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  VIEWER_BROADCAST_EVENT,
+  viewerBroadcastChannel,
+} from "@/lib/broadcast";
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
@@ -124,8 +128,15 @@ export function ViewerRealtime({
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey });
+    };
+
     const channel = supabase
-      .channel(`viewer-${caseId}`)
+      .channel(viewerBroadcastChannel(caseId))
+      .on("broadcast", { event: VIEWER_BROADCAST_EVENT }, () => {
+        invalidate();
+      })
       .on(
         "postgres_changes",
         {
@@ -135,7 +146,7 @@ export function ViewerRealtime({
           filter: `case_id=eq.${caseId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey });
+          invalidate();
         },
       )
       .on(
@@ -147,7 +158,7 @@ export function ViewerRealtime({
           filter: `id=eq.${caseId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey });
+          invalidate();
         },
       )
       .subscribe();

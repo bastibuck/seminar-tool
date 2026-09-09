@@ -179,7 +179,7 @@ export async function getCaseByCode(
 export type ReleaseIntent = "release" | "unrelease";
 
 export type ReleaseResult =
-  | { status: "ok"; releasedAt: Date | null }
+  | { status: "ok"; releasedAt: Date | null; caseId: string }
   | { status: "ended" }
   | { status: "unknown-case" }
   | { status: "unknown-finding" };
@@ -231,7 +231,7 @@ export async function setFindingReleased(input: {
         from releases
         where case_id = ${row.id} and finding_id = ${finding.id}
       `;
-      return { status: "ok", releasedAt: released?.releasedAt ?? null };
+      return { status: "ok", releasedAt: released?.releasedAt ?? null, caseId: row.id };
     } else {
       const deleted = await tx`
         delete from releases
@@ -245,13 +245,13 @@ export async function setFindingReleased(input: {
           where id = ${row.id}
         `;
       }
-      return { status: "ok", releasedAt: null };
+      return { status: "ok", releasedAt: null, caseId: row.id };
     }
   });
 }
 
 export type EndResult =
-  | { status: "ok"; endedAt: Date }
+  | { status: "ok"; endedAt: Date; caseId: string }
   | { status: "unknown-case" };
 
 export async function endCase(cockpitId: string): Promise<EndResult> {
@@ -263,5 +263,5 @@ export async function endCase(cockpitId: string): Promise<EndResult> {
   `;
   const row = rows[0];
   if (!row) return { status: "unknown-case" };
-  return { status: "ok", endedAt: row.endedAt };
+  return { status: "ok", endedAt: row.endedAt, caseId: row.id };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { notifyViewerOfChange } from "@/lib/broadcast";
 import { endCase } from "@/lib/cases";
 import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
@@ -23,6 +24,8 @@ export async function POST(
       { status: 404 },
     );
   }
+
+  notifyViewerOfChange(result.caseId);
 
   return NextResponse.json({
     ok: true,
