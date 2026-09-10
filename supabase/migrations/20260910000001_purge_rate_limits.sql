@@ -18,7 +18,15 @@ as $$
   select count(*)::integer from deleted;
 $$;
 
-revoke execute on function purge_rate_limits() from public;
+-- revoking from public alone is not enough: Supabase's default grants leave an
+-- explicit EXECUTE for the anon/authenticated roles (see #20), so API roles can
+-- still reach the function via PostgREST RPC. Revoke from them explicitly.
+revoke execute on function purge_rate_limits() from public, anon, authenticated;
+
+-- check_rate_limit() in 20260910000000 has the same API-role exposure:
+-- anon/authenticated could call it directly via PostgREST, bypassing the
+-- route-level request metadata. Revoke the API roles here as well.
+revoke execute on function check_rate_limit(text, text, integer, interval) from public, anon, authenticated;
 
 select cron.schedule(
   'purge-rate-limits',
