@@ -2,7 +2,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
-import { ensureRealtimeLive } from "../support/realtime";
 import {
   connectTestDb,
   createCase,
@@ -127,7 +126,6 @@ async function endCase(cockpitUrl: string): Promise<Response> {
 
 describe("broadcast push from cockpit to viewer", () => {
   it("delivers a row-free invalidation ping on release, un-release, and end", async () => {
-    await ensureRealtimeLive();
     const { cockpitUrl, caseId } = await createFreshCase("Broadcast Smoke");
     const cockpitFindings = extractFindingsFromCockpit(
       await getCockpit(cockpitUrl),

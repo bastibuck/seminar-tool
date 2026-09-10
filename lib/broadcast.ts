@@ -20,8 +20,8 @@ export function notifyViewerOfChange(caseId: string): void {
           payload: { type: "changed" },
         })
         .catch(() => {
-          // Best-effort notification; the viewer's Postgres Changes
-          // subscription remains as a fallback while both paths coexist.
+          // Best-effort notification; no fallback — the viewer relies on
+          // broadcast alone for realtime invalidation.
         })
         .then(() => {
           // Defer cleanup off the channel's own callback stack to avoid

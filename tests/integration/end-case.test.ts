@@ -1,22 +1,15 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
-import { ensureRealtimeLive } from "../support/realtime";
 import {
   connectTestDb,
   createCase,
   expectErrorJson,
-  expectOk,
   extractCaseTypeId,
   extractCode,
   getStartPage,
   resolveLocation,
 } from "../support/cases";
-import {
-  getSupabaseAnonKey,
-  getSupabaseUrl,
-} from "../../lib/supabase-config";
 
 const db = connectTestDb();
 
@@ -124,49 +117,6 @@ async function endCase(cockpitUrl: string): Promise<Response> {
     method: "POST",
     redirect: "manual",
   });
-}
-
-function subscribeToCaseEvents(
-  caseId: string,
-): { events: unknown[]; promise: Promise<unknown[]>; cleanup: () => void } {
-  const supabase: SupabaseClient = createClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-  );
-  const events: unknown[] = [];
-
-  let resolve!: (events: unknown[]) => void;
-  const promise = new Promise<unknown[]>((r) => {
-    resolve = r;
-  });
-
-  const channel = supabase
-    .channel(`test-case-events-${caseId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "cases",
-        filter: `id=eq.${caseId}`,
-      },
-      (payload) => {
-        events.push(payload);
-      },
-    )
-    .subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        resolve(events);
-      }
-    });
-
-  return {
-    events,
-    promise,
-    cleanup: () => {
-      supabase.removeChannel(channel);
-    },
-  };
 }
 
 describe("ending a case from the cockpit", () => {
@@ -341,34 +291,6 @@ describe("post-end join behavior", () => {
       released.map((f) => f.name),
     );
   });
-});
-
-describe("realtime end banner push", () => {
-  it("delivers the case end to a subscribed realtime client within ~1 second", async () => {
-    await ensureRealtimeLive();
-    const { cockpitUrl, caseId } = await createFreshCase("Ende Realtime");
-    const sub = subscribeToCaseEvents(caseId);
-    await sub.promise;
-
-    const before = Date.now();
-    await endCase(cockpitUrl);
-
-    await vi.waitFor(() => {
-      expect(sub.events.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
-
-    const elapsed = Date.now() - before;
-    expect(elapsed).toBeLessThan(2000);
-
-    const event = sub.events[0] as {
-      eventType: string;
-      new: { ended_at: string | null };
-    };
-    expect(event.eventType).toBe("UPDATE");
-    expect(event.new.ended_at).toBeTruthy();
-
-    sub.cleanup();
-  }, 30000);
 });
 
 describe("ending error handling", () => {

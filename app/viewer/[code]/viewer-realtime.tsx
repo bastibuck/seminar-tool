@@ -137,30 +137,6 @@ export function ViewerRealtime({
       .on("broadcast", { event: VIEWER_BROADCAST_EVENT }, () => {
         invalidate();
       })
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "releases",
-          filter: `case_id=eq.${caseId}`,
-        },
-        () => {
-          invalidate();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "cases",
-          filter: `id=eq.${caseId}`,
-        },
-        () => {
-          invalidate();
-        },
-      )
       .subscribe();
 
     return () => {
