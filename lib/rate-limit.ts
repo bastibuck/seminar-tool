@@ -1,13 +1,5 @@
-export interface RateLimiterOptions {
-  /** Sliding window duration in milliseconds */
-  windowMs: number;
-  /** Maximum requests allowed per window per key */
-  max: number;
-}
-
-interface WindowEntry {
-  timestamps: number[];
-}
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -15,64 +7,93 @@ export interface RateLimitResult {
 }
 
 export interface RateLimiter {
-  checkKey(key: string): RateLimitResult;
-  check(request: Request): RateLimitResult;
-  makeKey(ip: string, path: string): string;
+  check(request: Request): Promise<RateLimitResult>;
+}
+
+function extractIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() ?? "unknown";
+  }
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
+
+function makeKey(ip: string, path: string): string {
+  return `${ip}:${path}`;
+}
+
+function createUpstashLimiter(
+  windowSec: number,
+  max: number,
+  prefix: string,
+): RateLimiter {
+  const ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(max, `${windowSec} s`),
+    prefix,
+  });
+
+  return {
+    async check(request: Request): Promise<RateLimitResult> {
+      const ip = extractIp(request);
+      const url = new URL(request.url);
+      const key = makeKey(ip, url.pathname);
+      const { success, remaining } = await ratelimit.limit(key);
+      return { allowed: success, remaining };
+    },
+  };
+}
+
+function createMemoryLimiter(
+  windowMs: number,
+  max: number,
+): RateLimiter {
+  const store = new Map<string, number[]>();
+
+  function cleanup(key: string): void {
+    const timestamps = store.get(key);
+    if (!timestamps) return;
+
+    const cutoff = Date.now() - windowMs;
+    const filtered = timestamps.filter((t) => t > cutoff);
+
+    if (filtered.length === 0) {
+      store.delete(key);
+    } else {
+      store.set(key, filtered);
+    }
+  }
+
+  return {
+    check(request: Request): Promise<RateLimitResult> {
+      const ip = extractIp(request);
+      const url = new URL(request.url);
+      const key = makeKey(ip, url.pathname);
+
+      cleanup(key);
+
+      const timestamps = store.get(key) ?? [];
+      const count = timestamps.length;
+
+      if (count >= max) {
+        return Promise.resolve({ allowed: false, remaining: 0 });
+      }
+
+      timestamps.push(Date.now());
+      store.set(key, timestamps);
+
+      return Promise.resolve({ allowed: true, remaining: max - count - 1 });
+    },
+  };
 }
 
 export function createRateLimiter(
-  options: RateLimiterOptions,
+  windowSec: number,
+  max: number,
+  prefix: string,
 ): RateLimiter {
-  const store = new Map<string, WindowEntry>();
-
-  function cleanup(key: string): void {
-    const entry = store.get(key);
-    if (!entry) return;
-
-    const cutoff = Date.now() - options.windowMs;
-    entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-
-    if (entry.timestamps.length === 0) {
-      store.delete(key);
-    }
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    return createUpstashLimiter(windowSec, max, prefix);
   }
-
-  function checkKey(key: string): RateLimitResult {
-    cleanup(key);
-
-    const entry = store.get(key);
-    const count = entry?.timestamps.length ?? 0;
-
-    if (count >= options.max) {
-      return { allowed: false, remaining: 0 };
-    }
-
-    if (!entry) {
-      store.set(key, { timestamps: [Date.now()] });
-    } else {
-      entry.timestamps.push(Date.now());
-    }
-
-    return { allowed: true, remaining: options.max - count - 1 };
-  }
-
-  function makeKey(ip: string, path: string): string {
-    return `${ip}:${path}`;
-  }
-
-  function extractIp(request: Request): string {
-    const forwarded = request.headers.get("x-forwarded-for");
-    if (forwarded) {
-      return forwarded.split(",")[0]?.trim() ?? "unknown";
-    }
-    return request.headers.get("x-real-ip") ?? "unknown";
-  }
-
-  function check(request: Request): RateLimitResult {
-    const ip = extractIp(request);
-    const url = new URL(request.url);
-    return checkKey(makeKey(ip, url.pathname));
-  }
-
-  return { check, checkKey, makeKey };
+  return createMemoryLimiter(windowSec * 1000, max);
 }
