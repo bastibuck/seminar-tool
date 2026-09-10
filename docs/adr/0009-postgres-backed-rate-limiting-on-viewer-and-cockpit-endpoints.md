@@ -14,6 +14,8 @@ Viewer codes are 8 characters from a 30-character alphabet (~39.3 bits of entrop
 
 **Mechanism:** A `rate_limits` table (ip, endpoint, created_at) with an index on `(ip, endpoint, created_at)`. Each request calls the `check_rate_limit(ip, endpoint, limit, window)` SQL function, which atomically prunes entries older than the window, counts the remaining entries for that ip+endpoint, inserts the current entry, and returns whether the request is allowed plus how many remain. The function is `security definer` with `revoke` from public — direct table access is denied; the function (which writes its own rate-limit rows) is the only reachable path, so it runs with the privileges it needs.
 
+**Retention:** IPs are kept only as long as the rate-limit purpose requires. The per-check prune in `check_rate_limit` only removes rows for the ip+endpoint currently being checked, so a `purge_rate_limits()` function (a `pg_cron` job every 10 minutes, like the existing `delete-expired-cases` job) deletes every entry older than one hour. This bounds table growth and ensures discarded IP rows are removed at most an hour after their purpose lapses — raw IPs are stored, not anonymized, so the short retention window is the privacy control.
+
 **Why Postgres instead of Redis/Upstash:**
 
 - **Single code path.** One implementation runs in production, local dev, and tests — including unit tests, which exercise the real Postgres-backed limiter. No env-variable branching, no separate stores.
