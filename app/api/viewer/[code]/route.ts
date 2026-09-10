@@ -2,12 +2,19 @@ import { NextResponse } from "next/server";
 
 import { getCaseByCode } from "@/lib/cases";
 import { normalizeCode } from "@/lib/case-code";
+import { createRateLimiter, rateLimitExceededResponse } from "@/lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{ code: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext): Promise<NextResponse> {
+  const viewerReadLimiter = await createRateLimiter("viewer:read", 300, 60);
+  const { allowed } = await viewerReadLimiter.check(_request);
+  if (!allowed) {
+    return rateLimitExceededResponse();
+  }
+
   const { code: rawCode } = await context.params;
   const code = normalizeCode(rawCode);
 
