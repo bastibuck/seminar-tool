@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import type { Sql } from "postgres";
 
 export interface RateLimitResult {
@@ -10,6 +11,13 @@ export interface RateLimiter {
 }
 
 export type RateLimiterStore = "database" | "memory";
+
+export function rateLimitExceededResponse(): NextResponse {
+  return NextResponse.json(
+    { ok: false, error: "Zu viele Anfragen. Bitte warte einen Moment." },
+    { status: 429, headers: { "Retry-After": "60" } },
+  );
+}
 
 function extractIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -102,19 +110,30 @@ async function getDb(): Promise<Sql | null> {
   return dbPromise;
 }
 
-export async function createRateLimiter(
+const limiterCache = new Map<string, Promise<RateLimiter>>();
+
+export function createRateLimiter(
   endpoint: string,
   limit: number,
   windowSec: number,
   store: RateLimiterStore = "database",
 ): Promise<RateLimiter> {
-  if (store === "memory") {
-    return createMemoryLimiter(endpoint, windowSec * 1000, limit);
-  }
+  const key = `${store}:${endpoint}:${limit}:${windowSec}`;
+  const cached = limiterCache.get(key);
+  if (cached) return cached;
 
-  const sql = await getDb();
-  if (!sql) {
-    return createMemoryLimiter(endpoint, windowSec * 1000, limit);
-  }
-  return createDatabaseLimiter(sql, endpoint, limit, windowSec);
+  const limiter = (async (): Promise<RateLimiter> => {
+    if (store === "memory") {
+      return createMemoryLimiter(endpoint, windowSec * 1000, limit);
+    }
+
+    const sql = await getDb();
+    if (!sql) {
+      return createMemoryLimiter(endpoint, windowSec * 1000, limit);
+    }
+    return createDatabaseLimiter(sql, endpoint, limit, windowSec);
+  })();
+
+  limiterCache.set(key, limiter);
+  return limiter;
 }

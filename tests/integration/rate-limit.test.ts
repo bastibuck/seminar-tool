@@ -29,7 +29,7 @@ describe("rate limiting", () => {
     expect(throttled.length).toBe(10);
   });
 
-  it("never throttles a legitimate viewer burst within the limit", async () => {
+  it("never throttles a shared-classroom burst: several rooms refetching from one IP", async () => {
     const url = `${BASE_URL}/api/viewer/ZZZZZZZZ`;
 
     const responses = await Promise.all(
@@ -61,6 +61,13 @@ describe("rate limiting", () => {
       ),
     );
 
+    const nonThrottled = responses.filter(
+      (r) =>
+        r.headers.get("location") !== null &&
+        decodeURIComponent(r.headers.get("location")!).includes(
+          "Fallcode nicht gefunden",
+        ),
+    );
     const throttled = responses.filter(
       (r) =>
         r.headers.get("location") !== null &&
@@ -68,8 +75,9 @@ describe("rate limiting", () => {
           "Zu viele Versuche",
         ),
     );
-    expect(throttled.length).toBeGreaterThan(0);
     expect(responses.every((r) => r.status === 303)).toBe(true);
+    expect(nonThrottled.length).toBe(30);
+    expect(throttled.length).toBe(6);
   });
 
   it("throttles repeated cockpit reads with 429", async () => {

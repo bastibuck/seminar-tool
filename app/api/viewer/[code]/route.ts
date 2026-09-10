@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getCaseByCode } from "@/lib/cases";
 import { normalizeCode } from "@/lib/case-code";
-import { createRateLimiter } from "@/lib/rate-limit";
+import { createRateLimiter, rateLimitExceededResponse } from "@/lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{ code: string }>;
@@ -12,10 +12,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
   const viewerReadLimiter = await createRateLimiter("viewer:read", 300, 60);
   const { allowed } = await viewerReadLimiter.check(_request);
   if (!allowed) {
-    return NextResponse.json(
-      { ok: false, error: "Zu viele Anfragen. Bitte warte einen Moment." },
-      { status: 429, headers: { "Retry-After": "60" } },
-    );
+    return rateLimitExceededResponse();
   }
 
   const { code: rawCode } = await context.params;

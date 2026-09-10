@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCaseOverview } from "@/lib/cases";
-import { createRateLimiter } from "@/lib/rate-limit";
+import { createRateLimiter, rateLimitExceededResponse } from "@/lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -14,10 +14,7 @@ export async function GET(
   const cockpitReadLimiter = await createRateLimiter("cockpit:read", 120, 60);
   const { allowed } = await cockpitReadLimiter.check(request);
   if (!allowed) {
-    return NextResponse.json(
-      { ok: false, error: "Zu viele Anfragen. Bitte warte einen Moment." },
-      { status: 429, headers: { "Retry-After": "60" } },
-    );
+    return rateLimitExceededResponse();
   }
 
   const { cockpitId } = await context.params;
