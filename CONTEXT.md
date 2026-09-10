@@ -40,7 +40,7 @@ Finding images are not live-updated in an already-open Viewer; a fresh page load
 
 The supported admin upload formats are JPEG, PNG, and WebP. Generated SVG placeholders are an internal migration artifact and are not an admin upload format.
 
-Every Finding has its image path required at the database level after the existing data is backfilled; the rollout may use a temporary nullable column only during that backfill. Generated placeholders may be SVG, while server-side admin upload validation accepts the declared MIME type and size limits without separate byte-signature inspection.
+Every Finding has its image path required at the database level after the existing data is backfilled; the rollout may use a temporary nullable column only during that backfill. Generated placeholders may be SVG. Server-side admin upload validation decodes the uploaded bytes with an image library, requires the decoded raster format (JPEG, PNG, or WebP) to match the declared MIME type, enforces maximum dimensions, and re-encodes the image to strip metadata (EXIF) before the sanitized bytes are stored. Admin-uploaded images are therefore always stored as re-encoded raster images, never as raw or SVG upload bytes.
 
 Finding creation and image replacement happen on a dedicated admin Finding page. The Viewer receives a signed image URL only for a released Finding; unreleased Findings and their image paths are not exposed.
 

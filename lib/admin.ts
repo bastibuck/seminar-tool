@@ -1,6 +1,7 @@
 import { sql } from "./db";
 import { enqueueFindingImageCleanup } from "./finding-image-cleanup";
-import { signFindingImages, uploadFindingImage, validateFindingImage } from "./finding-images";
+import { signFindingImages, uploadFindingImage } from "./finding-images";
+import type { ProcessedFindingImage } from "./finding-image-processing";
 
 export type AdminFinding = {
   id: string;
@@ -121,12 +122,10 @@ export type CreateFindingResult =
 export async function createFinding(
   caseTypeId: string,
   name: string,
-  image: File,
+  image: ProcessedFindingImage,
 ): Promise<CreateFindingResult> {
   const trimmed = name.trim();
   if (trimmed === "") return { status: "empty-name" };
-  const imageError = validateFindingImage(image);
-  if (imageError) throw new Error(imageError);
   let uploadedPath: string | null = null;
   try {
     return await sql.begin<CreateFindingResult>(async (tx) => {
@@ -178,7 +177,7 @@ export async function getFinding(findingId: string) {
   return { ...finding, imageUrl: imageUrls.get(finding.imagePath) ?? "" };
 }
 
-export async function replaceFindingImage(findingId: string, image: File): Promise<"ok" | "unknown-finding"> {
+export async function replaceFindingImage(findingId: string, image: ProcessedFindingImage): Promise<"ok" | "unknown-finding"> {
   const path = await uploadFindingImage(findingId, image);
   try {
     const replaced = await sql.begin<boolean>(async (tx) => {

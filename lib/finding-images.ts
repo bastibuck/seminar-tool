@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "./supabase-config";
+import type { ProcessedFindingImage } from "./finding-image-processing";
 export { FINDING_IMAGE_MAX_BYTES, FINDING_IMAGE_TYPES, validateFindingImage } from "./finding-image-validation";
 
 export const FINDING_IMAGE_BUCKET = "finding-images";
@@ -10,11 +11,11 @@ function storage() {
   return createClient(getSupabaseUrl(), getSupabaseServiceRoleKey()).storage.from(FINDING_IMAGE_BUCKET);
 }
 
-export async function uploadFindingImage(findingId: string, file: File): Promise<string> {
-  const extension = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
+export async function uploadFindingImage(findingId: string, image: ProcessedFindingImage): Promise<string> {
+  const extension = image.contentType.split("/")[1] === "jpeg" ? "jpg" : image.contentType.split("/")[1];
   const path = `findings/${findingId}/${crypto.randomUUID()}.${extension}`;
-  const { error } = await storage().upload(path, await file.arrayBuffer(), {
-    contentType: file.type,
+  const { error } = await storage().upload(path, image.buffer, {
+    contentType: image.contentType,
     upsert: false,
   });
   if (error) throw error;
