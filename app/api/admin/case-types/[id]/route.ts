@@ -8,8 +8,9 @@ import {
   swapFindings,
 } from "@/lib/admin";
 
-import { jsonError } from "../../http";
-import { validateFindingImage } from "@/lib/finding-images";
+import { isLargerThanBytes, jsonError } from "../../http";
+import { validateFindingImage } from "@/lib/finding-image-validation";
+import { validateAndProcessFindingImage, FINDING_IMAGE_REQUEST_MAX_BYTES } from "@/lib/finding-image-processing";
 import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
 
 type RouteContext = {
@@ -38,14 +39,20 @@ export async function POST(
   if (!mutationsEnabled()) return mutationsDisabledResponse();
 
   const { id } = await context.params;
+  if (isLargerThanBytes(request, FINDING_IMAGE_REQUEST_MAX_BYTES)) {
+    return jsonError("Die Anfrage ist zu groß.", 413);
+  }
+
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
   const image = formData.get("image");
   if (!(image instanceof File)) return jsonError("Bitte wähle ein Bild aus.", 400);
   const validationError = validateFindingImage(image);
   if (validationError) return jsonError(validationError, 400);
+  const processed = await validateAndProcessFindingImage(image);
+  if (!processed.ok) return jsonError(processed.error, 400);
 
-  const result = await createFinding(id, name, image);
+  const result = await createFinding(id, name, processed);
   switch (result.status) {
     case "empty-name":
       return jsonError("Bitte gib einen Namen ein.", 400);

@@ -4,11 +4,16 @@ import { BASE_URL } from "../setup/server-address";
 import {
   connectTestDb,
   createCase,
+  extractCode,
   getStartPage,
   resolveLocation,
 } from "../support/cases";
+import { validPngBuffer, validWebpBuffer, oversizedWidthPngBuffer } from "../support/images";
 
 let sql: ReturnType<typeof connectTestDb>;
+let pngBytes: ArrayBuffer;
+let webpBytes: ArrayBuffer;
+let oversizedWidthPng: ArrayBuffer;
 
 const adminBase = `${BASE_URL}/api/admin/case-types`;
 
@@ -37,7 +42,7 @@ async function addFinding(
 ): Promise<string> {
   const body = new FormData();
   body.set("name", name);
-  body.set("image", new File(["test-image"], "test.png", { type: "image/png" }));
+  body.set("image", new File([pngBytes], "test.png", { type: "image/png" }));
   const response = await fetch(`${adminBase}/${typeId}`, {
     method: "POST",
     body,
@@ -103,6 +108,9 @@ async function swapFindings(
 
 beforeAll(async () => {
   sql = connectTestDb();
+  pngBytes = await validPngBuffer();
+  webpBytes = await validWebpBuffer();
+  oversizedWidthPng = await oversizedWidthPngBuffer();
 });
 
 afterAll(async () => {
@@ -225,11 +233,87 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
     ]);
   });
 
+  it("accepts a valid WebP image upload", async () => {
+    const id = await createType(testName("WebP Befund"));
+    const body = new FormData();
+    body.set("name", "Röntgen");
+    body.set("image", new File([webpBytes], "test.webp", { type: "image/webp" }));
+    const response = await fetch(`${adminBase}/${id}`, {
+      method: "POST",
+      body,
+    });
+    expect(response.status).toBe(201);
+  });
+
+  it("rejects non-image bytes labelled as PNG in German", async () => {
+    const id = await createType(testName("Fake Bild"));
+    const body = new FormData();
+    body.set("name", "Manipuliert");
+    body.set("image", new File(["not-an-image"], "fake.png", { type: "image/png" }));
+    const response = await fetch(`${adminBase}/${id}`, {
+      method: "POST",
+      body,
+    });
+    expect(response.status).toBe(400);
+    const result = await response.json();
+    expect(result.error).toContain("kein gültiges Bild");
+    const detail = await getTypeFindings(id);
+    expect(detail.findings).toEqual([]);
+  });
+
+  it("rejects an image whose real format differs from its declared type in German", async () => {
+    const id = await createType(testName("Falscher Typ"));
+    const body = new FormData();
+    body.set("name", "Fehldeklariert");
+    body.set("image", new File([pngBytes], "fake.jpg", { type: "image/jpeg" }));
+    const response = await fetch(`${adminBase}/${id}`, {
+      method: "POST",
+      body,
+    });
+    expect(response.status).toBe(400);
+    const result = await response.json();
+    expect(result.error).toContain("übereinstimmen");
+    const detail = await getTypeFindings(id);
+    expect(detail.findings).toEqual([]);
+  });
+
+  it("rejects an image whose dimensions exceed the limit in German", async () => {
+    const id = await createType(testName("Zu breites Bild"));
+    const body = new FormData();
+    body.set("name", "Riesenbild");
+    body.set("image", new File([oversizedWidthPng], "wide.png", { type: "image/png" }));
+    const response = await fetch(`${adminBase}/${id}`, {
+      method: "POST",
+      body,
+    });
+    expect(response.status).toBe(400);
+    const result = await response.json();
+    expect(result.error).toContain("Dimensionen");
+    const detail = await getTypeFindings(id);
+    expect(detail.findings).toEqual([]);
+  });
+
+  it("renders the re-encoded image of an uploaded finding in the viewer", async () => {
+    const id = await createType(testName("Viewer Bild"));
+    const findingId = await addFinding(id, "Röntgen Thorax");
+
+    const { cockpitUrl } = await createAndGetCockpit(id);
+    await releaseFinding(cockpitUrl, findingId);
+
+    const cockpitHtml = await (await fetch(cockpitUrl)).text();
+    const code = extractCode(cockpitHtml);
+    const response = await fetch(`${BASE_URL}/viewer/${code}`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("Röntgen Thorax");
+    expect(html).toMatch(/<img[^>]*src="[^"]*storage\/v1\/object\/sign[^"]*"[^>]*class="finding-card__image"/);
+  });
+
   it("rejects an empty finding name in German", async () => {
     const id = await createType(testName("Leerer Befund"));
     const body = new FormData();
     body.set("name", "  ");
-    body.set("image", new File(["test-image"], "test.png", { type: "image/png" }));
+    body.set("image", new File([pngBytes], "test.png", { type: "image/png" }));
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
       body,
@@ -244,7 +328,7 @@ describe("Finding authoring via /api/admin/case-types/[id]", () => {
     await addFinding(id, "EKG");
     const response = await fetch(`${adminBase}/${id}`, {
       method: "POST",
-      body: (() => { const body = new FormData(); body.set("name", "EKG"); body.set("image", new File(["test-image"], "test.png", { type: "image/png" })); return body; })(),
+      body: (() => { const body = new FormData(); body.set("name", "EKG"); body.set("image", new File([pngBytes], "test.png", { type: "image/png" })); return body; })(),
     });
     expect(response.status).toBe(409);
     const body = await response.json();
