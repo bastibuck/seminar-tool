@@ -16,12 +16,12 @@ Viewer codes are 8 characters from a 30-character alphabet (~39.3 bits of entrop
 
 **Why Postgres instead of Redis/Upstash:**
 
-- **Single code path.** One implementation runs in production, local dev, and tests. No env-variable branching. (A tiny in-memory fallback exists only when `DATABASE_URL` is entirely absent, e.g. running the unit tests without a database — see "Local dev" below; production, local dev, and integration tests all use the Postgres path.)
+- **Single code path.** One implementation runs in production, local dev, and tests — including unit tests, which exercise the real Postgres-backed limiter. No env-variable branching, no separate stores.
 - **No new infrastructure.** Supabase Postgres (with its connection pooler) is already the app's data store. Upstash would add a second service and two env vars to Vercel.
 - **Fast enough.** A single indexed query per check; the viewer read endpoint scans at most 300 rows per check. Sub-millisecond with the index on a warm table.
 - **Consistent across serverless containers.** On Vercel, every function instance shares the same database, so cold starts and container parallelism do not weaken the limit (the failure mode of an in-memory counter).
 
-**Local dev:** `supabase db reset` applies the migration, so local dev and integration tests exercise the real Postgres-backed limiter with no extra setup. A pure in-memory fallback exists only for when `DATABASE_URL` is entirely absent (e.g. running tests without a database).
+**Local dev:** `supabase db reset` applies the migration, so local dev, unit tests, and integration tests all exercise the real Postgres-backed limiter with no extra setup.
 
 **IP extraction:** `x-forwarded-for` (first entry), falling back to `x-real-ip`, then `"unknown"`.
 

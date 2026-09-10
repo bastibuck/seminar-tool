@@ -10,8 +10,6 @@ export interface RateLimiter {
   check(request: Request): Promise<RateLimitResult>;
 }
 
-export type RateLimiterStore = "database" | "memory";
-
 export function rateLimitExceededResponse(): NextResponse {
   return NextResponse.json(
     { ok: false, error: "Zu viele Anfragen. Bitte warte einen Moment." },
@@ -51,86 +49,19 @@ function createDatabaseLimiter(
   };
 }
 
-function createMemoryLimiter(
-  endpoint: string,
-  windowMs: number,
-  max: number,
-): RateLimiter {
-  const store = new Map<string, number[]>();
-
-  function cleanup(key: string): void {
-    const timestamps = store.get(key);
-    if (!timestamps) return;
-
-    const cutoff = Date.now() - windowMs;
-    const filtered = timestamps.filter((t) => t > cutoff);
-
-    if (filtered.length === 0) {
-      store.delete(key);
-    } else {
-      store.set(key, filtered);
-    }
-  }
-
-  return {
-    check(request: Request): Promise<RateLimitResult> {
-      const ip = extractIp(request);
-      const key = `${ip}:${endpoint}`;
-
-      cleanup(key);
-
-      const timestamps = store.get(key) ?? [];
-      const count = timestamps.length;
-
-      if (count >= max) {
-        return Promise.resolve({ allowed: false, remaining: 0 });
-      }
-
-      timestamps.push(Date.now());
-      store.set(key, timestamps);
-
-      return Promise.resolve({ allowed: true, remaining: max - count - 1 });
-    },
-  };
-}
-
-let dbPromise: Promise<Sql | null> | null = null;
-
-async function getDb(): Promise<Sql | null> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      try {
-        const { sql } = await import("./db");
-        return sql;
-      } catch {
-        return null;
-      }
-    })();
-  }
-  return dbPromise;
-}
-
 const limiterCache = new Map<string, Promise<RateLimiter>>();
 
 export function createRateLimiter(
   endpoint: string,
   limit: number,
   windowSec: number,
-  store: RateLimiterStore = "database",
 ): Promise<RateLimiter> {
-  const key = `${store}:${endpoint}:${limit}:${windowSec}`;
+  const key = `${endpoint}:${limit}:${windowSec}`;
   const cached = limiterCache.get(key);
   if (cached) return cached;
 
   const limiter = (async (): Promise<RateLimiter> => {
-    if (store === "memory") {
-      return createMemoryLimiter(endpoint, windowSec * 1000, limit);
-    }
-
-    const sql = await getDb();
-    if (!sql) {
-      return createMemoryLimiter(endpoint, windowSec * 1000, limit);
-    }
+    const { sql } = await import("./db");
     return createDatabaseLimiter(sql, endpoint, limit, windowSec);
   })();
 
