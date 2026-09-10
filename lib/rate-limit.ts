@@ -1,5 +1,4 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import type { Sql } from "postgres";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -10,6 +9,8 @@ export interface RateLimiter {
   check(request: Request): Promise<RateLimitResult>;
 }
 
+export type RateLimiterStore = "database" | "memory";
+
 function extractIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
@@ -18,33 +19,32 @@ function extractIp(request: Request): string {
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
-function makeKey(ip: string, path: string): string {
-  return `${ip}:${path}`;
-}
-
-function createUpstashLimiter(
+function createDatabaseLimiter(
+  sql: Sql,
+  endpoint: string,
+  limit: number,
   windowSec: number,
-  max: number,
-  prefix: string,
 ): RateLimiter {
-  const ratelimit = new Ratelimit({
-    redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(max, `${windowSec} s`),
-    prefix,
-  });
-
   return {
     async check(request: Request): Promise<RateLimitResult> {
       const ip = extractIp(request);
-      const url = new URL(request.url);
-      const key = makeKey(ip, url.pathname);
-      const { success, remaining } = await ratelimit.limit(key);
-      return { allowed: success, remaining };
+      const rows = await sql<{ ok: boolean; remaining: number }[]>`
+        select *
+        from check_rate_limit(
+          ${ip},
+          ${endpoint},
+          ${limit},
+          make_interval(secs => ${windowSec})
+        )
+      `;
+      const row = rows[0];
+      return { allowed: row.ok, remaining: row.remaining };
     },
   };
 }
 
 function createMemoryLimiter(
+  endpoint: string,
   windowMs: number,
   max: number,
 ): RateLimiter {
@@ -67,8 +67,7 @@ function createMemoryLimiter(
   return {
     check(request: Request): Promise<RateLimitResult> {
       const ip = extractIp(request);
-      const url = new URL(request.url);
-      const key = makeKey(ip, url.pathname);
+      const key = `${ip}:${endpoint}`;
 
       cleanup(key);
 
@@ -87,13 +86,35 @@ function createMemoryLimiter(
   };
 }
 
-export function createRateLimiter(
-  windowSec: number,
-  max: number,
-  prefix: string,
-): RateLimiter {
-  if (process.env.UPSTASH_REDIS_REST_URL) {
-    return createUpstashLimiter(windowSec, max, prefix);
+let dbPromise: Promise<Sql | null> | null = null;
+
+async function getDb(): Promise<Sql | null> {
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      try {
+        const { sql } = await import("./db");
+        return sql;
+      } catch {
+        return null;
+      }
+    })();
   }
-  return createMemoryLimiter(windowSec * 1000, max);
+  return dbPromise;
+}
+
+export async function createRateLimiter(
+  endpoint: string,
+  limit: number,
+  windowSec: number,
+  store: RateLimiterStore = "database",
+): Promise<RateLimiter> {
+  if (store === "memory") {
+    return createMemoryLimiter(endpoint, windowSec * 1000, limit);
+  }
+
+  const sql = await getDb();
+  if (!sql) {
+    return createMemoryLimiter(endpoint, windowSec * 1000, limit);
+  }
+  return createDatabaseLimiter(sql, endpoint, limit, windowSec);
 }

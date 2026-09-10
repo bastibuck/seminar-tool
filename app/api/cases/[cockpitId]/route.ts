@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 import { getCaseOverview } from "@/lib/cases";
 import { createRateLimiter } from "@/lib/rate-limit";
 
-const cockpitReadLimiter = createRateLimiter(60, 120, "ratelimit:cockpit:read");
-
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
 };
@@ -13,6 +11,7 @@ export async function GET(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  const cockpitReadLimiter = await createRateLimiter("cockpit:read", 120, 60);
   const { allowed } = await cockpitReadLimiter.check(request);
   if (!allowed) {
     return NextResponse.json(

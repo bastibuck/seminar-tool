@@ -4,7 +4,7 @@ import { createRateLimiter } from "../../lib/rate-limit";
 
 describe("createRateLimiter (in-memory fallback)", () => {
   it("allows requests within the limit", async () => {
-    const limiter = createRateLimiter(60, 3, "test:allow");
+    const limiter = await createRateLimiter("test:allow", 3, 60, "memory");
 
     const req = new Request("http://localhost/api/test");
 
@@ -14,7 +14,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
   });
 
   it("blocks requests exceeding the limit", async () => {
-    const limiter = createRateLimiter(60, 2, "test:block");
+    const limiter = await createRateLimiter("test:block", 2, 60, "memory");
 
     const req = new Request("http://localhost/api/test");
 
@@ -24,7 +24,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
   });
 
   it("tracks per-IP separately", async () => {
-    const limiter = createRateLimiter(60, 1, "test:per-ip");
+    const limiter = await createRateLimiter("test:per-ip", 1, 60, "memory");
 
     const reqA = new Request("http://localhost/api/test", {
       headers: { "x-forwarded-for": "1.1.1.1" },
@@ -38,7 +38,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
   });
 
   it("blocks once per-IP, not globally", async () => {
-    const limiter = createRateLimiter(60, 1, "test:not-global");
+    const limiter = await createRateLimiter("test:not-global", 1, 60, "memory");
 
     const reqA = new Request("http://localhost/api/test", {
       headers: { "x-forwarded-for": "1.1.1.1" },
@@ -58,7 +58,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
       const now = Date.now();
       vi.setSystemTime(now);
 
-      const limiter = createRateLimiter(60, 2, "test:reset");
+      const limiter = await createRateLimiter("test:reset", 2, 60, "memory");
 
       const req = new Request("http://localhost/api/test");
 
@@ -81,7 +81,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
       const now = Date.now();
       vi.setSystemTime(now);
 
-      const limiter = createRateLimiter(60, 2, "test:sliding");
+      const limiter = await createRateLimiter("test:sliding", 2, 60, "memory");
 
       const req = new Request("http://localhost/api/test");
 
@@ -104,7 +104,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
   });
 
   it("extracts IP from x-real-ip header as fallback", async () => {
-    const limiter = createRateLimiter(60, 1, "test:x-real-ip");
+    const limiter = await createRateLimiter("test:x-real-ip", 1, 60, "memory");
 
     const reqA = new Request("http://localhost/api/test", {
       headers: { "x-real-ip": "3.3.3.3" },
@@ -118,7 +118,7 @@ describe("createRateLimiter (in-memory fallback)", () => {
   });
 
   it("groups multiple IPs behind comma-separated x-forwarded-for", async () => {
-    const limiter = createRateLimiter(60, 1, "test:comma-ips");
+    const limiter = await createRateLimiter("test:comma-ips", 1, 60, "memory");
 
     const req = new Request("http://localhost/api/test", {
       headers: { "x-forwarded-for": "1.1.1.1, 5.5.5.5" },
@@ -127,9 +127,9 @@ describe("createRateLimiter (in-memory fallback)", () => {
     expect(await limiter.check(req)).toEqual({ allowed: true, remaining: 0 });
   });
 
-  it("isolates by prefix", async () => {
-    const limiterA = createRateLimiter(60, 1, "test:iso-a");
-    const limiterB = createRateLimiter(60, 1, "test:iso-b");
+  it("isolates by endpoint name", async () => {
+    const limiterA = await createRateLimiter("test:iso-a", 1, 60, "memory");
+    const limiterB = await createRateLimiter("test:iso-b", 1, 60, "memory");
 
     const req = new Request("http://localhost/api/test");
 

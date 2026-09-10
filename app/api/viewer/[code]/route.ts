@@ -4,13 +4,12 @@ import { getCaseByCode } from "@/lib/cases";
 import { normalizeCode } from "@/lib/case-code";
 import { createRateLimiter } from "@/lib/rate-limit";
 
-const viewerReadLimiter = createRateLimiter(60, 300, "ratelimit:viewer:read");
-
 type RouteContext = {
   params: Promise<{ code: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext): Promise<NextResponse> {
+  const viewerReadLimiter = await createRateLimiter("viewer:read", 300, 60);
   const { allowed } = await viewerReadLimiter.check(_request);
   if (!allowed) {
     return NextResponse.json(

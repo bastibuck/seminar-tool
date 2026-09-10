@@ -5,9 +5,8 @@ import { getCaseByCode } from "@/lib/cases";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { redirectTo } from "@/lib/redirect";
 
-const joinLimiter = createRateLimiter(60, 30, "ratelimit:viewer:join");
-
 export async function POST(request: Request): Promise<NextResponse> {
+  const joinLimiter = await createRateLimiter("viewer:join", 30, 60);
   const { allowed } = await joinLimiter.check(request);
   if (!allowed) {
     return redirectTo(
