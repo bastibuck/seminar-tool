@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { caseTypeExists, createCase } from "@/lib/cases";
-import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
+import { env } from "@/lib/env";
+import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 import { redirectTo } from "@/lib/redirect";
 
 function redirectToError(message: string): NextResponse {
@@ -9,7 +10,7 @@ function redirectToError(message: string): NextResponse {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();

@@ -1,4 +1,4 @@
-import { getSupabaseUrl } from "./supabase-config";
+import { env } from "./env";
 
 export const REFERRER_POLICY = "strict-origin-when-cross-origin";
 export const HSTS_VALUE = "max-age=63072000; includeSubDomains; preload";
@@ -21,7 +21,7 @@ type BuildCspOptions = {
 export function buildCsp({
   nonce,
   isDev = false,
-  supabaseUrl = getSupabaseUrl(),
+  supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL,
 }: BuildCspOptions): string {
   const origin = trimTrailingSlash(supabaseUrl);
   const realtimeEndpoint = new URL(origin);

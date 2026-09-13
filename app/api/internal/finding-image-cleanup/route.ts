@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { env } from "../../../../lib/env";
 import { runFindingImageCleanup } from "../../../../lib/finding-image-cleanup";
 
 function isAuthorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  return request.headers.get("authorization") === `Bearer ${env.CRON_SECRET}`;
 }
 
 export async function GET(request: Request) {

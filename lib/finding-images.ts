@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { getSupabaseServiceRoleKey, getSupabaseUrl } from "./supabase-config";
+import { env } from "./env";
 import type { ProcessedFindingImage } from "./finding-image-processing";
 export { FINDING_IMAGE_MAX_BYTES, FINDING_IMAGE_TYPES, validateFindingImage } from "./finding-image-validation";
 
@@ -8,7 +8,10 @@ export const FINDING_IMAGE_BUCKET = "finding-images";
 export const FINDING_IMAGE_URL_LIFETIME = 10 * 60;
 
 function storage() {
-  return createClient(getSupabaseUrl(), getSupabaseServiceRoleKey()).storage.from(FINDING_IMAGE_BUCKET);
+  return createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+  ).storage.from(FINDING_IMAGE_BUCKET);
 }
 
 export async function uploadFindingImage(findingId: string, image: ProcessedFindingImage): Promise<string> {

@@ -20,14 +20,18 @@ npm run dev          # start the app at http://localhost:3000
 
 ### Environment variables
 
-The Supabase client reads two vars. Copy `.env.example` to `.env.local` (already gitignored) and fill them in. The anon key is a **publishable** key — public by design when paired with RLS — so it is safe in the browser bundle, but it is **environment-specific**:
+All environment variables are read through `lib/env.ts`, a single zod-validated, type-safe module that fails fast when configuration is missing or malformed. None of the six variables has a code-side default: copy `.env.example` to `.env.local` (already gitignored) and fill in real values, or the app refuses to start.
 
-- **Local stack:** run `supabase status`; use the anon key it prints (a JWT beginning `eyJ...`).
-- **Hosted project:** Supabase Dashboard → Project Settings → API Keys (the `sb_publishable_...` or legacy anon key).
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are read by the Supabase client. The anon key is a **publishable** key — public by design when paired with RLS — so it is safe in the browser bundle, but it is **environment-specific**:
 
-`MUTATIONS_ENABLED` is a fail-closed deployment safety lock for user-triggered writes. Set it to exactly `true` for local development or a demo deployment where writes are intentionally enabled. Leave it unset or use any other value in production to return `503 Service Unavailable` from mutation routes. Changing the Vercel environment variable requires a redeploy; this is not a runtime toggle. The integration test server sets it explicitly to `true`.
+  - **Local stack:** run `supabase status`; use the anon key it prints (a JWT beginning `eyJ...`).
+  - **Hosted project:** Supabase Dashboard → Project Settings → API Keys (the `sb_publishable_...` or legacy anon key).
 
-`NEXT_PUBLIC_SUPABASE_URL` defaults to the local stack (`http://127.0.0.1:54321`) when unset. The app fails loudly when the anon key or `DATABASE_URL` is missing. Realtime integration tests read the same vars, so set them before running `npm test`.
+`DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CRON_SECRET` are server-only secrets. `CRON_SECRET` authorizes the nightly finding-image cleanup endpoint; generate a local value with `openssl rand -base64 32`.
+
+`MUTATIONS_ENABLED` is a fail-closed deployment safety lock for user-triggered writes and must be exactly `true` or `false` — any other value fails validation. Set it to `true` for local development or a demo deployment where writes are intentionally enabled, and to `false` in production to return `503 Service Unavailable` from mutation routes. Changing the Vercel environment variable requires a redeploy; this is not a runtime toggle. The integration test server sets it explicitly to `true`.
+
+Realtime integration tests read the same vars, so set them before running `npm test`.
 
 The home page is the cockpit start page: pick a Case Type (the database is seeded with an example, and admins can author more), name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
 

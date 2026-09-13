@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+import "./lib/env";
 import { buildBaseSecurityHeaders } from "./lib/security-headers";
 
 const isProduction = process.env.NODE_ENV === "production";

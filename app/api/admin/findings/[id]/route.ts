@@ -4,7 +4,8 @@ import { isLargerThanBytes } from "../../http";
 import { findingNameIsAvailable, getFinding, renameFinding, replaceFindingImage } from "@/lib/admin";
 import { validateFindingImage } from "@/lib/finding-image-validation";
 import { validateAndProcessFindingImage, FINDING_IMAGE_REQUEST_MAX_BYTES } from "@/lib/finding-image-processing";
-import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
+import { env } from "@/lib/env";
+import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,7 @@ export async function GET(_: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const id = (await context.params).id;
   if (isLargerThanBytes(request, FINDING_IMAGE_REQUEST_MAX_BYTES)) {

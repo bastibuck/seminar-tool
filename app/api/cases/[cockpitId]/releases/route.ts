@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { notifyViewerOfChange } from "@/lib/broadcast";
 import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
-import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
+import { env } from "@/lib/env";
+import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -16,7 +17,7 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const { cockpitId } = await context.params;
   const formData = await request.formData();

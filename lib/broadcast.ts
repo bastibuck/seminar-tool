@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { getSupabaseServiceRoleKey, getSupabaseUrl } from "./supabase-config";
+import { env } from "./env";
 
 export const VIEWER_BROADCAST_EVENT = "changed";
 
@@ -9,7 +9,7 @@ export function viewerBroadcastChannel(caseId: string): string {
 }
 
 export function notifyViewerOfChange(caseId: string): void {
-  const supabase = createClient(getSupabaseUrl(), getSupabaseServiceRoleKey());
+  const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   const channel = supabase.channel(viewerBroadcastChannel(caseId));
   channel.subscribe((status) => {
     if (status === "SUBSCRIBED") {
