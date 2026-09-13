@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
+import { env } from "../../lib/env";
 import { BASE_URL } from "../setup/server-address";
 import {
   connectTestDb,
@@ -11,10 +12,6 @@ import {
   resolveLocation,
   toggleFinding,
 } from "../support/cases";
-import {
-  getSupabaseAnonKey,
-  getSupabaseUrl,
-} from "../../lib/supabase-config";
 
 const db = connectTestDb();
 
@@ -74,8 +71,8 @@ function subscribeToCaseBroadcast(
   cleanup: () => void;
 } {
   const supabase: SupabaseClient = createClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   const events: {
     type: string;

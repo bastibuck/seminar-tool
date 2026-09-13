@@ -6,7 +6,8 @@ import {
   renameCaseType,
 } from "@/lib/admin";
 import { listCaseTypes } from "@/lib/cases";
-import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
+import { env } from "@/lib/env";
+import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
 import { jsonError } from "../http";
 
@@ -16,7 +17,7 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
@@ -35,7 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 export async function PUT(request: Request): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();
@@ -57,7 +58,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 }
 
 export async function DELETE(request: Request): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();

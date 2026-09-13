@@ -11,7 +11,8 @@ import {
 import { isLargerThanBytes, jsonError } from "../../http";
 import { validateFindingImage } from "@/lib/finding-image-validation";
 import { validateAndProcessFindingImage, FINDING_IMAGE_REQUEST_MAX_BYTES } from "@/lib/finding-image-processing";
-import { mutationsDisabledResponse, mutationsEnabled } from "@/lib/mutation-safety";
+import { env } from "@/lib/env";
+import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -36,7 +37,7 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const { id } = await context.params;
   if (isLargerThanBytes(request, FINDING_IMAGE_REQUEST_MAX_BYTES)) {
@@ -69,7 +70,7 @@ export async function PATCH(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const { id } = await context.params;
   const formData = await request.formData();
@@ -93,7 +94,7 @@ export async function DELETE(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const { id } = await context.params;
   const formData = await request.formData();
@@ -117,7 +118,7 @@ export async function PUT(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!mutationsEnabled()) return mutationsDisabledResponse();
+  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
 
   const { id } = await context.params;
   const formData = await request.formData();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSupabaseUrl } from "../../lib/supabase-config";
+import { env } from "../../lib/env";
 import { BASE_URL } from "../setup/server-address";
 import {
   createCase,
@@ -34,7 +34,7 @@ function expectCoreSecurityHeaders(headers: Headers): string {
   expect(scriptSrc).toContain("'strict-dynamic'");
   expect(scriptSrc).not.toContain("'unsafe-inline'");
   expect(scriptSrc).not.toContain("'unsafe-eval'");
-  expect(csp).toContain(getSupabaseUrl());
+  expect(csp).toContain(env.NEXT_PUBLIC_SUPABASE_URL);
   expect(csp).toContain("https://fonts.googleapis.com");
   expect(csp).toContain("https://fonts.gstatic.com");
   expect(csp).toContain("object-src 'none'");

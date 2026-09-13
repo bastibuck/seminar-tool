@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getSupabaseAnonKey,
-  getSupabaseUrl,
-} from "../../lib/supabase-config";
+import { env } from "../../lib/env";
 import { connectTestDb } from "../support/cases";
 
-const supabaseUrl = getSupabaseUrl();
-const anonKey = getSupabaseAnonKey();
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const TABLES = [
   "app_health",

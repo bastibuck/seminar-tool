@@ -5,6 +5,28 @@ import {
   buildCsp,
 } from "../../lib/security-headers";
 
+const REQUIRED_VARS = [
+  "DATABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "CRON_SECRET",
+  "MUTATIONS_ENABLED",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+] as const;
+
+const originalEnv = Object.fromEntries(
+  REQUIRED_VARS.map((name) => [name, process.env[name]]),
+);
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  for (const [name, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  vi.resetModules();
+});
+
 const SUPABASE_HTTPS = "https://abcd.supabase.co";
 const SUPABASE_HTTP = "http://127.0.0.1:54321";
 
@@ -107,10 +129,20 @@ describe("buildCsp", () => {
     expect(dev).not.toContain("upgrade-insecure-requests");
   });
 
-  it("falls back to the configured Supabase URL", () => {
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_HTTPS);
-    const csp = buildCsp({ nonce: "abc123" });
+  it("falls back to the configured Supabase URL from the validated environment", async () => {
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+    process.env.CRON_SECRET = "cron-secret";
+    process.env.MUTATIONS_ENABLED = "true";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_HTTPS;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    vi.resetModules();
+    const { buildCsp: freshBuildCsp } = await import(
+      "../../lib/security-headers"
+    );
+    const csp = freshBuildCsp({ nonce: "abc123" });
     expect(directivesOf(csp).get("connect-src")).toContain(SUPABASE_HTTPS);
+    expect(directivesOf(csp).get("img-src")).toContain(SUPABASE_HTTPS);
   });
 });
 
@@ -152,8 +184,4 @@ describe("buildBaseSecurityHeaders", () => {
       expect.objectContaining({ key: "Strict-Transport-Security" }),
     );
   });
-});
-
-afterEach(() => {
-  vi.unstubAllEnvs();
 });
