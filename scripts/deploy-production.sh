@@ -313,7 +313,7 @@ say "  2. purge-rate-limits     (every 10 minutes)"
 say ""
 say "Verify in the Supabase Dashboard:"
 
-open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/database/cron"
+open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/integrations/cron/jobs"
 step "Database → Extensions → confirm pg_cron is enabled"
 step "Database → Cron Jobs → confirm both jobs are listed and enabled"
 
