@@ -14,3 +14,5 @@ supabase/.temp/
 teaching/
 
 .DS_Store
+
+.vercel
