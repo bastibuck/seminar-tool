@@ -138,6 +138,9 @@ After deploying, verify:
 **App refuses to start / env validation fails:**
 All six variables must be set. Check Vercel → Settings → Environment Variables. Changing a variable requires a redeploy.
 
+**Pages fail with `getaddrinfo ENOTFOUND db.<ref>.supabase.co`:**
+`DATABASE_URL` uses the direct connection hostname, which does not resolve from Vercel functions. Replace it with the **pooled** connection string: Supabase Dashboard → Settings → Database → Connection string → URI (Transaction/Pooler tab, host `.pooler.supabase.com`, port `6543`), then redeploy. The deployment wizard validates this at capture time.
+
 **Migrations fail with "pg_cron already exists":**
 The `create extension if not exists pg_cron` in migration `20260904000000` is idempotent. If pg_cron is already installed (e.g. Supabase enables it by default), the migration continues.
 
