@@ -427,7 +427,11 @@ else
   warn "yet — that's expected. The next stage configures them, then we deploy."
   ask VERCEL_PRODUCTION_URL "Production URL (e.g. your-project.vercel.app):"
 fi
-note "This is your live production URL — you will need it for smoke testing"
+ask VERCEL_PROJECT_NAME "Vercel project name (shown in the project dashboard):"
+VERCEL_PRODUCTION_URL="${VERCEL_PRODUCTION_URL#https://}"
+VERCEL_PRODUCTION_URL="${VERCEL_PRODUCTION_URL#http://}"
+VERCEL_PROJECT_URL="https://vercel.com/${VERCEL_PROJECT_NAME}"
+note "Production URL: ${VERCEL_PRODUCTION_URL:-<not yet available>}"
 
 # ── Stage 9: Configure Vercel environment variables ──────────────────────
 stage "Configure Vercel environment variables"
@@ -444,7 +448,7 @@ for key in "${UPSTREAM_ENV[@]}"; do
   fi
 done
 
-open_url "https://vercel.com/dashboard"
+open_url "${VERCEL_PROJECT_URL}/settings/environment-variables"
 step "Settings → Environment Variables → verify all 6 variables are set for Production"
 
 if confirm "All environment variables configured in Vercel?"; then
@@ -467,8 +471,8 @@ if confirm "Trigger redeploy now?"; then
   fi
 fi
 
-open_url "https://vercel.com/dashboard"
-step "Deployments → confirm the latest deployment succeeded"
+open_url "${VERCEL_PROJECT_URL}/deployments"
+step "Confirm the latest deployment succeeded"
 step "Settings → Cron Jobs → confirm 'finding-image-cleanup' is registered (0 3 * * *)"
 
 if confirm "Deployment succeeded and cron job is registered?"; then
@@ -482,7 +486,11 @@ stage "Create production content"
 say "The production database is empty — no seed data is applied automatically."
 say "Create your first Case Type and Findings through the admin interface."
 
-open_url "${VERCEL_PRODUCTION_URL:-https://vercel.com}/admin"
+if [[ -n "${VERCEL_PRODUCTION_URL:-}" ]]; then
+  open_url "https://${VERCEL_PRODUCTION_URL}/admin"
+else
+  warn "Production URL not captured — open https://<your-project>.vercel.app/admin manually"
+fi
 step "Click 'Neuer Falltyp' → enter a Case Type name → save"
 step "Add Findings to the Case Type (name + image for each)"
 step "Verify the Case Type and Findings appear in the list"
@@ -496,7 +504,7 @@ fi
 # ── Final: Smoke test checklist ──────────────────────────────────────────
 _clear
 printf '\n%s%s  ✓ Deployment complete%s\n\n' "$BOLD" "$GREEN" "$RESET"
-note "Production URL: ${VERCEL_PRODUCTION_URL:-<check Vercel dashboard>}"
+note "Production URL: ${VERCEL_PRODUCTION_URL:+https://${VERCEL_PRODUCTION_URL}}${VERCEL_PRODUCTION_URL:-<check the Vercel dashboard>}"
 note "Values written to: $ENV_FILE"
 (( ${#WRITTEN_ENV[@]} )) && note "Env vars: ${WRITTEN_ENV[*]}"
 (( ${#SKIPPED[@]} )) && { warn "Skipped (set manually):"; for s in "${SKIPPED[@]}"; do note "  - $s"; done; }
