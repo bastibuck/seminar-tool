@@ -8,7 +8,9 @@
 # Usage: bash scripts/deploy-production.sh
 #
 # The wizard is idempotent: re-running it picks up values already saved to
-# .env.local and skips completed stages.
+# the staging file (default .env.deploy) and skips completed stages. The
+# staging file is gitignored (.env.*) and never loaded by Next.js, so it
+# cannot interfere with local development.
 
 set -euo pipefail
 
@@ -26,7 +28,7 @@ fi
 TOTAL_STAGES=0
 
 _STAGE_INDEX=0
-ENV_FILE="${ENV_FILE:-.env.local}"
+ENV_FILE="${ENV_FILE:-.env.deploy}"
 WRITTEN_ENV=()    # KEYs written to ENV_FILE this run
 WRITTEN_SECRET=() # secret NAMEs set this run
 SKIPPED=()        # things we couldn't do (e.g. gh missing)

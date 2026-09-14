@@ -69,7 +69,7 @@ Run the interactive deployment wizard:
 bash scripts/deploy-production.sh
 ```
 
-The wizard walks through every step: creating the Supabase project, applying migrations, configuring Vercel, setting environment variables, and running the smoke test. It saves progress to `.env.local` and can be re-run if interrupted.
+The wizard walks through every step: creating the Supabase project, applying migrations, configuring Vercel, setting environment variables, and running the smoke test. It stages captured values in a gitignored `.env.deploy` file (never loaded by Next.js and independent of your local `.env.local`), and can be re-run if interrupted.
 
 ### Deployment path (merge to production)
 
@@ -145,7 +145,7 @@ The `create extension if not exists pg_cron` in migration `20260904000000` is id
 Ensure `SUPABASE_SERVICE_ROLE_KEY` is set correctly. The service role key is used to mint signed URLs for the private `finding-images` bucket.
 
 **Vercel Cron returns 401:**
-Ensure `CRON_SECRET` is set in Vercel and matches the value in your local `.env.local`.
+Ensure `CRON_SECRET` is set in Vercel and matches the value staged in `.env.deploy` (or the value the deployment wizard displayed).
 
 ## Nightly cleanup
 
