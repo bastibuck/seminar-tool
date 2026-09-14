@@ -154,8 +154,10 @@ set_var() {
 
 _upsert_vercel_env() {
   local key="$1" value="$2" env="$3"
-  if command -v vercel >/dev/null 2>&1; then
-    if vercel env add "$key" "$env" --force <<< "$value" >/dev/null 2>&1; then
+  local cmd
+  cmd=$(vercel_cmd)
+  if [[ -n "$cmd" ]]; then
+    if $cmd env add "$key" "$env" --force <<< "$value" >/dev/null 2>&1; then
       printf '  %s✓ set%s Vercel env %s (%s)\n' "$GREEN" "$RESET" "$key" "$env"
       return
     fi
@@ -394,28 +396,37 @@ fi
 
 # ── Stage 8: Set up Vercel ───────────────────────────────────────────────
 stage "Set up Vercel project"
-say "Import your GitHub repository into Vercel."
+say "Create a Vercel project for this repository. Environment variables"
+say "are configured in the next stage — before the first deploy — so the"
+say "build has everything it needs."
 
+CLI_SETUP=0
 if confirm "Use the Vercel CLI for guided setup?"; then
   if ensure_vercel_login; then
     VERCEL_CMD=$(vercel_cmd)
-    say "Running: $VERCEL_CMD --prod"
-    $VERCEL_CMD --prod
+    say "Running: $VERCEL_CMD link (creates/links the project, no deploy yet)"
+    $VERCEL_CMD link
     say "Vercel project linked"
-    note "If you don't see a URL, check: $VERCEL_CMD ls"
+    note "If you don't see a project, check: $VERCEL_CMD ls"
+    CLI_SETUP=1
   else
     warn "Continue with dashboard setup instead"
     confirm "Continue with dashboard setup?" || exit 0
   fi
 fi
 
-open_url "https://vercel.com/new"
-step "Import your GitHub repository (bastibuck/seminar-tool)"
-step "Framework Preset: Next.js (auto-detected)"
-step "Build & Output Settings: leave defaults"
-step "Click 'Deploy'"
-
-ask VERCEL_PRODUCTION_URL "Production URL (e.g. your-project.vercel.app):"
+if (( CLI_SETUP )); then
+  ask VERCEL_PRODUCTION_URL "Production URL (e.g. your-project.vercel.app):"
+else
+  open_url "https://vercel.com/new"
+  step "Import your GitHub repository (bastibuck/seminar-tool)"
+  step "Framework Preset: Next.js (auto-detected)"
+  step "Build & Output Settings: leave defaults"
+  step "Click 'Deploy'"
+  warn "The initial import build will likely FAIL because env vars aren't set"
+  warn "yet — that's expected. The next stage configures them, then we deploy."
+  ask VERCEL_PRODUCTION_URL "Production URL (e.g. your-project.vercel.app):"
+fi
 note "This is your live production URL — you will need it for smoke testing"
 
 # ── Stage 9: Configure Vercel environment variables ──────────────────────
