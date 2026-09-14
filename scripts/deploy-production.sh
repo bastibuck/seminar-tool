@@ -317,8 +317,12 @@ check_db_reachability "$DATABASE_URL" || true
 
 # NEXT_PUBLIC_SUPABASE_URL
 open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/integrations/data_api/overview"
-step "Data API overview → copy the Project URL"
+step "Data API overview → copy the base project URL (e.g. https://<ref>.supabase.co — omit any /rest/v1 suffix; the client builds its Realtime websocket on this value)"
 ask NEXT_PUBLIC_SUPABASE_URL "Paste the project URL:"
+# Strip a pasted Data API suffix (https://<ref>.supabase.co/rest/v1) so the
+# value is always the base URL; lib/env.ts fails the build if a sub-path slips through.
+NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL%/rest/v1*}"
+NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL%/}"
 
 # NEXT_PUBLIC_SUPABASE_ANON_KEY
 open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/api-keys"
