@@ -272,17 +272,17 @@ step "Copy the full URI (starts with postgresql://...)"
 ask_secret DATABASE_URL "Paste the pooled connection string:"
 
 # NEXT_PUBLIC_SUPABASE_URL
-open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/api"
-step "Settings → API → Project URL"
+open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/api-keys"
+step "Settings → API Keys → Project URL"
 ask NEXT_PUBLIC_SUPABASE_URL "Paste the project URL:"
 
 # NEXT_PUBLIC_SUPABASE_ANON_KEY
-step "Settings → API → Project API keys → anon / publishable"
-ask_secret NEXT_PUBLIC_SUPABASE_ANON_KEY "Paste the anon / publishable key:"
+step "Settings → API Keys → publishable / anon key"
+ask_secret NEXT_PUBLIC_SUPABASE_ANON_KEY "Paste the publishable / anon key:"
 
 # SUPABASE_SERVICE_ROLE_KEY
-step "Settings → API → Project API keys → service_role (secret)"
-ask_secret SUPABASE_SERVICE_ROLE_KEY "Paste the service_role key:"
+step "Settings → API Keys → secret / service_role key"
+ask_secret SUPABASE_SERVICE_ROLE_KEY "Paste the secret / service_role key:"
 
 write_env DATABASE_URL "$DATABASE_URL"
 write_env NEXT_PUBLIC_SUPABASE_URL "$NEXT_PUBLIC_SUPABASE_URL"
