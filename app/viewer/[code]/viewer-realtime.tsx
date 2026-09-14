@@ -113,6 +113,8 @@ export function ViewerRealtime({
     },
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
     initialData: {
       ended: initialEnded,
       findings: initialFindings.map((f) => ({

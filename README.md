@@ -143,8 +143,11 @@ All six variables must be set. Check Vercel → Settings → Environment Variabl
 **Pages fail with `getaddrinfo ENOTFOUND db.<ref>.supabase.co`:**
 `DATABASE_URL` uses the direct connection hostname, which does not resolve from Vercel functions. Replace it with the **pooled** connection string: Supabase Dashboard → Settings → Database → Connection string → URI (Transaction/Pooler tab, host `.pooler.supabase.com`, port `6543`), then redeploy. The deployment wizard validates this at capture time.
 
-**Viewer never updates in real time (no broadcasts on the live app):**
-Check `NEXT_PUBLIC_SUPABASE_URL` in Vercel. It must be the project **root** URL (`https://<ref>.supabase.co`), not the Data API URL shown on the Supabase "API" page (`https://<ref>.supabase.co/rest/v1`) which is a common copy-paste mistake. Both the browser viewer and the server-side publisher (`lib/broadcast.ts`) build their websocket endpoint from this value, so a `/rest/v1` suffix breaks Realtime entirely while HTTP still works — the symptom is a clipboard/app that only updates on page reload. `lib/env.ts` now rejects the bad value at build time; fix the variable and redeploy.
+**Viewer updates in real time only sometimes (or only after a page reload):**
+This is the inherent broadcast delivery window, not a network outage. Viewers are pinged over Supabase Broadcast, which is fire-and-forget with no replay: a ping sent while the viewer's websocket is still connecting (just after a page load) or reconnecting is lost forever, and previously the viewer never refetched on its own (`staleTime: Infinity`, no polling), so a single lost ping left stale state until the next broadcast or a manual reload. The viewer now also polls the viewer API every 5 seconds as a fallback, so a lost ping resolves itself within the poll interval.
+
+**Viewer never updates at all on the live app (not even eventually):**
+Check `NEXT_PUBLIC_SUPABASE_URL` in Vercel. It must be the project **root** URL (`https://<ref>.supabase.co`), not the Data API URL shown on the Supabase "API" page (`https://<ref>.supabase.co/rest/v1`) which is a common copy-paste mistake. Both the browser viewer and the server-side publisher (`lib/broadcast.ts`) build their websocket endpoint from this value, so a `/rest/v1` suffix breaks Realtime entirely while HTTP still works. `lib/env.ts` now rejects the bad value at build time; fix the variable and redeploy.
 
 **Migrations fail with "pg_cron already exists":**
 The `create extension if not exists pg_cron` in migration `20260904000000` is idempotent. If pg_cron is already installed (e.g. Supabase enables it by default), the migration continues.

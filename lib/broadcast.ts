@@ -20,8 +20,11 @@ export function notifyViewerOfChange(caseId: string): void {
           payload: { type: "changed" },
         })
         .catch(() => {
-          // Best-effort notification; no fallback — the viewer relies on
-          // broadcast alone for realtime invalidation.
+          // Best-effort notification. Broadcast is fire-and-forget with no
+          // replay: a ping sent while the viewer's websocket is (re)connecting
+          // is lost. The viewer therefore polls the API as a fallback
+          // (refetchInterval in ViewerRealtime), so a lost ping self-heals
+          // within the poll interval instead of leaving stale state forever.
         })
         .then(() => {
           // Defer cleanup off the channel's own callback stack to avoid
