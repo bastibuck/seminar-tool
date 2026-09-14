@@ -85,6 +85,12 @@ describe("buildCsp", () => {
     expect(imgSrc).toContain(SUPABASE_HTTPS);
   });
 
+  it("allows blob URLs for local image previews", () => {
+    const csp = buildCsp({ nonce: "abc123", supabaseUrl: SUPABASE_HTTPS });
+    const imgSrc = directivesOf(csp).get("img-src")!;
+    expect(imgSrc).toContain("blob:");
+  });
+
   it("allows Supabase REST, Realtime and WebSocket connections", () => {
     const csp = buildCsp({ nonce: "abc123", supabaseUrl: SUPABASE_HTTPS });
     const connectSrc = directivesOf(csp).get("connect-src")!;

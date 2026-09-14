@@ -38,7 +38,7 @@ export function buildCsp({
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
     `style-src 'self' 'unsafe-inline' ${GOOGLE_FONTS_STYLESHEET}`,
-    `img-src 'self' ${origin}`,
+    `img-src 'self' blob: ${origin}`,
     `font-src 'self' ${GOOGLE_FONTS_FILES}`,
     `connect-src 'self' ${origin} ${realtimeWs}`,
     "object-src 'none'",
