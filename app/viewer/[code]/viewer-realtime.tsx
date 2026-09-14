@@ -41,8 +41,6 @@ type ImageSize = {
   height: number;
 };
 
-const VIEWER_REFETCH_INTERVAL_MS = 5_000;
-
 const timeFormat = new Intl.DateTimeFormat("de-DE", {
   hour: "2-digit",
   minute: "2-digit",
@@ -112,7 +110,7 @@ export function ViewerRealtime({
       const response = await fetch(`/api/viewer/${caseCode}`);
       if (!response.ok) {
         // Throw (not return undefined): React Query keeps the last good data
-        // on a transient poll/broadcast-refetch failure instead of evicting
+        // on a transient broadcast-refetch failure instead of evicting
         // it and flashing an empty state.
         throw new Error(`viewer fetch failed: ${response.status}`);
       }
@@ -120,8 +118,6 @@ export function ViewerRealtime({
     },
     staleTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchInterval: VIEWER_REFETCH_INTERVAL_MS,
-    refetchIntervalInBackground: true,
     initialData: {
       ended: initialEnded,
       findings: initialFindings.map((f) => ({

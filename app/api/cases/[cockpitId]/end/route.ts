@@ -26,7 +26,19 @@ export async function POST(
     );
   }
 
-  notifyViewerOfChange(result.caseId);
+  try {
+    await notifyViewerOfChange(result.caseId);
+  } catch (error) {
+    console.error("Broadcast to viewer failed after ending case:", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Fall wurde beendet, aber die Live-Benachrichtigung ist fehlgeschlagen. Bitte Seite neu laden.",
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,

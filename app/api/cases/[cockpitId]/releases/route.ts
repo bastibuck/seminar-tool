@@ -47,7 +47,15 @@ export async function POST(
     return jsonError("Befund nicht gefunden.", 404);
   }
 
-  notifyViewerOfChange(result.caseId);
+  try {
+    await notifyViewerOfChange(result.caseId);
+  } catch (error) {
+    console.error("Broadcast to viewer failed after release:", error);
+    return jsonError(
+      "Befund wurde geändert, aber die Live-Benachrichtigung ist fehlgeschlagen. Bitte Seite neu laden.",
+      500,
+    );
+  }
 
   return NextResponse.json({
     ok: true,

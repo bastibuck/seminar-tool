@@ -8,29 +8,24 @@ export function viewerBroadcastChannel(caseId: string): string {
   return `viewer-${caseId}`;
 }
 
-export function notifyViewerOfChange(caseId: string): void {
-  const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+export async function notifyViewerOfChange(caseId: string): Promise<void> {
+  const supabase = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+  );
   const channel = supabase.channel(viewerBroadcastChannel(caseId));
-  channel.subscribe((status) => {
-    if (status === "SUBSCRIBED") {
-      channel
-        .send({
-          type: "broadcast",
-          event: VIEWER_BROADCAST_EVENT,
-          payload: { type: "changed" },
-        })
-        .catch(() => {
-          // Best-effort notification. Broadcast is fire-and-forget with no
-          // replay: a ping sent while the viewer's websocket is (re)connecting
-          // is lost. The viewer therefore polls the API as a fallback
-          // (refetchInterval in ViewerRealtime), so a lost ping self-heals
-          // within the poll interval instead of leaving stale state forever.
-        })
-        .then(() => {
-          // Defer cleanup off the channel's own callback stack to avoid
-          // re-entering its unsubscribe path synchronously.
-          setTimeout(() => supabase.removeChannel(channel), 0);
-        });
-    }
-  });
+
+  try {
+    // Publish over the Realtime REST endpoint instead of opening a WebSocket:
+    // a single awaited HTTP request has no join handshake or long-lived
+    // socket for a serverless function to be frozen in. httpSend resolves
+    // with {success:true} only after the Realtime server accepted the
+    // message, and rejects on failure, so callers await it and surface
+    // errors instead of firing-and-forgetting.
+    await channel.httpSend(VIEWER_BROADCAST_EVENT, {
+      type: "changed",
+    });
+  } finally {
+    void supabase.removeChannel(channel);
+  }
 }
