@@ -184,6 +184,39 @@ TOTAL_STAGES=11
 
 banner "Production deployment — Seminar Tool"
 
+# Resolve the Vercel CLI command (global if installed, else via npx).
+vercel_cmd() {
+  if command -v vercel >/dev/null 2>&1; then
+    printf 'vercel'
+  elif command -v npx >/dev/null 2>&1; then
+    printf 'npx vercel'
+  else
+    printf ''
+  fi
+}
+
+# Log into the Vercel CLI if not already authenticated. Idempotent.
+ensure_vercel_login() {
+  local cmd
+  cmd=$(vercel_cmd)
+  if [[ -z "$cmd" ]]; then
+    warn "Vercel CLI not available — set it up via the dashboard instead"
+    return 1
+  fi
+  if $cmd whoami >/dev/null 2>&1; then
+    say "Vercel CLI: already logged in"
+    return 0
+  fi
+  say "Vercel CLI is not logged in yet — the next step opens a browser."
+  say "Running: $cmd login"
+  if ! $cmd login; then
+    warn "Vercel login did not complete — run '$cmd login' and re-run this wizard"
+    return 1
+  fi
+  say "Vercel CLI: logged in"
+  return 0
+}
+
 # ── Stage 1: Prerequisites ───────────────────────────────────────────────
 stage "Verify prerequisites"
 say "Checking that required tools are available..."
@@ -363,15 +396,14 @@ stage "Set up Vercel project"
 say "Import your GitHub repository into Vercel."
 
 if confirm "Use the Vercel CLI for guided setup?"; then
-  if command -v vercel >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
-    VERCEL_CMD="vercel"
-    command -v vercel >/dev/null 2>&1 || VERCEL_CMD="npx vercel"
+  if ensure_vercel_login; then
+    VERCEL_CMD=$(vercel_cmd)
     say "Running: $VERCEL_CMD --prod"
     $VERCEL_CMD --prod
     say "Vercel project linked"
     note "If you don't see a URL, check: $VERCEL_CMD ls"
   else
-    warn "Vercel CLI not available — set up via the dashboard instead"
+    warn "Continue with dashboard setup instead"
     confirm "Continue with dashboard setup?" || exit 0
   fi
 fi
@@ -414,13 +446,12 @@ stage "Deploy and verify"
 say "Trigger a production deployment to pick up the environment variables."
 
 if confirm "Trigger redeploy now?"; then
-  if command -v vercel >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
-    VERCEL_CMD="vercel"
-    command -v vercel >/dev/null 2>&1 || VERCEL_CMD="npx vercel"
+  if ensure_vercel_login; then
+    VERCEL_CMD=$(vercel_cmd)
     $VERCEL_CMD --prod --force
     say "Deployment triggered"
   else
-    warn "Vercel CLI not available — push to GitHub or redeploy from the dashboard"
+    warn "Vercel CLI not available/not logged in — push to GitHub or redeploy from the dashboard"
   fi
 fi
 
