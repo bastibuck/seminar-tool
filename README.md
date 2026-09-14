@@ -59,6 +59,94 @@ Useful extras:
 
 Schema lives in version-controlled migrations under `supabase/migrations/`; the app connects directly to Postgres via the required `DATABASE_URL`. For local development, set it in `.env.local` to the connection details for the Supabase stack started by `npm run db:start` (normally `postgresql://postgres:postgres@127.0.0.1:54322/postgres`).
 
+## Production deployment
+
+### Quick start
+
+Run the interactive deployment wizard:
+
+```sh
+bash scripts/deploy-production.sh
+```
+
+The wizard walks through every step: creating the Supabase project, applying migrations, configuring Vercel, setting environment variables, and running the smoke test. It saves progress to `.env.local` and can be re-run if interrupted.
+
+### Deployment path (merge to production)
+
+1. Merge to `main` — Vercel auto-deploys if the GitHub integration is linked.
+2. Apply any new migrations to the production database (`npx supabase db push` or SQL Editor).
+3. Verify Vercel Cron jobs in the dashboard (Settings → Cron Jobs).
+4. Create or update Case Types and Findings via the admin interface (`/admin`).
+5. Run the smoke test checklist.
+
+### Production environment variables
+
+All six variables from `.env.example` are required in Vercel (Settings → Environment Variables, scope: Production):
+
+| Variable | Source | Notes |
+|---|---|---|
+| `DATABASE_URL` | Supabase Dashboard → Settings → Database → **Pooler** URI | Must use the pooled connection string, not the direct connection — the app runs in concurrent serverless functions |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL | |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → Project API keys → anon / publishable | Publishable by design when paired with RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → Project API keys → service_role (secret) | Server-only; used for Storage operations and Broadcast |
+| `CRON_SECRET` | Generate with `openssl rand -base64 32` | Authorizes the nightly Vercel Cron cleanup endpoint |
+| `MUTATIONS_ENABLED` | Set to `true` | Fail-closed safety lock; `false` returns 503 on all write routes. Changing requires a redeploy |
+
+### Production database
+
+- **Migrations:** All files in `supabase/migrations/` must be applied. Use `npx supabase db push` (after linking) or paste each file into the SQL Editor in order.
+- **Seed:** `supabase/seed.sql` is **not** run against production. It is for local development and integration tests only. Production Case Types and Findings are created through the admin interface at `/admin`.
+- **pg_cron:** The migrations install two scheduled jobs:
+  - `delete-expired-cases` — daily at 03:00 UTC, deletes ended Cases (>24h) and inactive Cases (>72h)
+  - `purge-rate-limits` — every 10 minutes, cleans up stale rate limit rows
+  - Verify both in Dashboard → Database → Cron Jobs after applying migrations.
+
+### Production storage
+
+The `finding-images` bucket is created by migration `20260904000001_finding_images.sql` with:
+
+- **Visibility:** Private (signed URLs required)
+- **File size limit:** 10 MB
+- **Allowed MIME types:** `image/jpeg`, `image/png`, `image/webp`, `image/svg+xml`
+
+Verify the bucket exists in Dashboard → Storage after applying migrations.
+
+### Vercel Cron
+
+The nightly finding-image cleanup is configured in `vercel.json` and registered automatically when the project is linked. Verify in Dashboard → Settings → Cron Jobs:
+
+- **Path:** `/api/internal/finding-image-cleanup`
+- **Schedule:** `0 3 * * *` (daily at 03:00 UTC)
+- **Auth:** The endpoint requires `Authorization: Bearer <CRON_SECRET>` — Vercel injects this automatically
+
+### Smoke test checklist
+
+After deploying, verify:
+
+- [ ] Cockpit creates a Case and shows the private cockpit URL
+- [ ] Viewer joins with case code and sees hidden findings
+- [ ] Releasing a Finding makes it visible to the Viewer in real time
+- [ ] Finding images load via signed URLs and support zoom/pan
+- [ ] Un-releasing a Finding hides it from the Viewer
+- [ ] Ending a Case shows the "Fall beendet" banner to the Viewer
+- [ ] Released findings remain readable after the Case ends
+- [ ] `/api/internal/finding-image-cleanup` returns 401 without the auth header
+- [ ] Local development still works (`npm run db:start && npm run dev`)
+
+### Troubleshooting
+
+**App refuses to start / env validation fails:**
+All six variables must be set. Check Vercel → Settings → Environment Variables. Changing a variable requires a redeploy.
+
+**Migrations fail with "pg_cron already exists":**
+The `create extension if not exists pg_cron` in migration `20260904000000` is idempotent. If pg_cron is already installed (e.g. Supabase enables it by default), the migration continues.
+
+**Finding images return 403:**
+Ensure `SUPABASE_SERVICE_ROLE_KEY` is set correctly. The service role key is used to mint signed URLs for the private `finding-images` bucket.
+
+**Vercel Cron returns 401:**
+Ensure `CRON_SECRET` is set in Vercel and matches the value in your local `.env.local`.
+
 ## Nightly cleanup
 
 Both cleanup jobs run daily at 03:00:
