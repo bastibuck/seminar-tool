@@ -219,6 +219,38 @@ ensure_vercel_login() {
   return 0
 }
 
+# Warns if DATABASE_URL is not a Supabase pooled (pooler) connection string.
+# Direct db.<ref>.supabase.co hostnames do not resolve from where the app runs.
+check_db_pooler() {
+  if [[ "$1" != *".pooler.supabase.com"* ]]; then
+    warn "This does NOT look like a Supabase pooled connection string."
+    warn "Vercel requires the Pooler / Transaction connection (host *.pooler.supabase.com,"
+    warn "port 6543). A direct db.<ref>.supabase.co hostname won't resolve from Vercel."
+    return 1
+  fi
+  return 0
+}
+
+# Tests that DATABASE_URL resolves and accepts a TCP connection, catching
+# bad hostnames immediately instead of on the deployed site.
+check_db_reachability() {
+  local host port
+  host=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$1" 2>/dev/null)
+  port=$(node -e "process.stdout.write(new URL(process.argv[1]).port || '5432')" "$1" 2>/dev/null)
+  if [[ -z "$host" ]]; then
+    warn "Could not parse DATABASE_URL"
+    return 1
+  fi
+  if node -e \
+      "const net=require('net');const s=net.connect(process.argv[1],process.argv[2],()=>{console.log('connected');s.end()});s.on('error',e=>{console.error(e.code);process.exit(1)})" \
+      "$port" "$host" >/dev/null 2>&1; then
+    say "Database reachable: $host:$port"
+    return 0
+  fi
+  warn "Database NOT reachable at $host:$port (check the connection string / project)"
+  return 1
+}
+
 # ── Stage 1: Prerequisites ───────────────────────────────────────────────
 stage "Verify prerequisites"
 say "Checking that required tools are available..."
@@ -269,9 +301,19 @@ say "We need four values from the Supabase Dashboard."
 
 # DATABASE_URL — pooled connection string
 open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/database"
-step "Settings → Database → Connection string → URI (Pooler tab)"
-step "Copy the full URI (starts with postgresql://...)"
+step "Settings → Database → Connection string → URI (Transaction / Pooler tab)"
+step "Copy the full URI (host ends in .pooler.supabase.com, port 6543)"
 ask_secret DATABASE_URL "Paste the pooled connection string:"
+
+if ! check_db_pooler "$DATABASE_URL"; then
+  if confirm "Re-enter a pooled connection string now?"; then
+    ask_secret DATABASE_URL "Paste the Transaction pooler connection string:"
+    check_db_pooler "$DATABASE_URL" || true
+  else
+    warn "Continuing — but Vercel will not connect to the DB with a direct hostname"
+  fi
+fi
+check_db_reachability "$DATABASE_URL" || true
 
 # NEXT_PUBLIC_SUPABASE_URL
 open_url "https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/integrations/data_api/overview"
