@@ -9,7 +9,23 @@ export const env = createEnv({
     MUTATIONS_ENABLED: z.enum(["true", "false"]).transform((value) => value === "true"),
   },
   client: {
-    NEXT_PUBLIC_SUPABASE_URL: z.string().min(1),
+    NEXT_PUBLIC_SUPABASE_URL: z
+      .string()
+      .min(1)
+      .refine(
+        (value) => {
+          try {
+            const url = new URL(value);
+            return url.pathname === "/" || url.pathname === "";
+          } catch {
+            return false;
+          }
+        },
+        {
+          message:
+            "NEXT_PUBLIC_SUPABASE_URL must be the Supabase project root URL (e.g. https://<ref>.supabase.co), not a sub-path like /rest/v1",
+        },
+      ),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   },
   runtimeEnv: {

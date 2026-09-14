@@ -67,6 +67,25 @@ describe("env validation", () => {
     });
   }
 
+  describe("NEXT_PUBLIC_SUPABASE_URL base URL requirement", () => {
+    it("rejects a Data API URL (with /rest/v1 suffix)", async () => {
+      setValidEnv();
+      process.env.NEXT_PUBLIC_SUPABASE_URL =
+        "https://uhmerjhmkmxtvgiuggiy.supabase.co/rest/v1/";
+      await expect(importEnv()).rejects.toThrow();
+    });
+
+    it("accepts a project base URL on a hosted project", async () => {
+      setValidEnv();
+      process.env.NEXT_PUBLIC_SUPABASE_URL =
+        "https://uhmerjhmkmxtvgiuggiy.supabase.co";
+      const { env } = await importEnv();
+      expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe(
+        "https://uhmerjhmkmxtvgiuggiy.supabase.co",
+      );
+    });
+  });
+
   describe("MUTATIONS_ENABLED mapping", () => {
     it("maps the exact lowercase true to a boolean true", async () => {
       setValidEnv();

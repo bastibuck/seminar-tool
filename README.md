@@ -27,6 +27,8 @@ All environment variables are read through `lib/env.ts`, a single zod-validated,
   - **Local stack:** run `supabase status`; use the anon key it prints (a JWT beginning `eyJ...`).
   - **Hosted project:** Supabase Dashboard → Project Settings → API Keys (the `sb_publishable_...` or legacy anon key).
 
+  It must be the project **root** URL (e.g. `https://<ref>.supabase.co`, locally `http://127.0.0.1:54321`) — never the Data API URL with a `/rest/v1` suffix. The Supabase client builds its REST, auth, storage **and Realtime websocket** endpoints on top of this value, so a `/rest/v1` suffix silently breaks the viewer's broadcast subscription (`CHANNEL_ERROR`, extraneous `/rest/v1/` in the websocket path). `lib/env.ts` now rejects such values at build time.
+
 `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CRON_SECRET` are server-only secrets. `CRON_SECRET` authorizes the nightly finding-image cleanup endpoint; generate a local value with `openssl rand -base64 32`.
 
 `MUTATIONS_ENABLED` is a fail-closed deployment safety lock for user-triggered writes and must be exactly `true` or `false` — any other value fails validation. Set it to `true` for local development or a demo deployment where writes are intentionally enabled, and to `false` in production to return `503 Service Unavailable` from mutation routes. Changing the Vercel environment variable requires a redeploy; this is not a runtime toggle. The integration test server sets it explicitly to `true`.
@@ -140,6 +142,9 @@ All six variables must be set. Check Vercel → Settings → Environment Variabl
 
 **Pages fail with `getaddrinfo ENOTFOUND db.<ref>.supabase.co`:**
 `DATABASE_URL` uses the direct connection hostname, which does not resolve from Vercel functions. Replace it with the **pooled** connection string: Supabase Dashboard → Settings → Database → Connection string → URI (Transaction/Pooler tab, host `.pooler.supabase.com`, port `6543`), then redeploy. The deployment wizard validates this at capture time.
+
+**Viewer never updates in real time (no broadcasts on the live app):**
+Check `NEXT_PUBLIC_SUPABASE_URL` in Vercel. It must be the project **root** URL (`https://<ref>.supabase.co`), not the Data API URL shown on the Supabase "API" page (`https://<ref>.supabase.co/rest/v1`) which is a common copy-paste mistake. Both the browser viewer and the server-side publisher (`lib/broadcast.ts`) build their websocket endpoint from this value, so a `/rest/v1` suffix breaks Realtime entirely while HTTP still works — the symptom is a clipboard/app that only updates on page reload. `lib/env.ts` now rejects the bad value at build time; fix the variable and redeploy.
 
 **Migrations fail with "pg_cron already exists":**
 The `create extension if not exists pg_cron` in migration `20260904000000` is idempotent. If pg_cron is already installed (e.g. Supabase enables it by default), the migration continues.
