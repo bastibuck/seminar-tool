@@ -7,7 +7,8 @@ import {
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   VIEWER_BROADCAST_EVENT,
@@ -15,6 +16,10 @@ import {
 } from "@/lib/broadcast";
 import type { ReleasedFinding } from "@/lib/cases";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  VIEWER_FALLBACK_REFETCH_INTERVAL_MS,
+  shouldUseFallbackRefetch,
+} from "./viewer-refetch";
 
 type FindingView = {
   id: string;
@@ -91,12 +96,15 @@ export function ViewerRealtime({
   const queryClient = useQueryClient();
   const viewerSectionRef = useRef<HTMLElement>(null);
   const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
+  const [channelStatus, setChannelStatus] = useState<
+    REALTIME_SUBSCRIBE_STATES | undefined
+  >(undefined);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const imageTriggerRef = useRef<HTMLImageElement>(null);
   const transformRef = useRef<ReactZoomPanPinchContentRef | null>(null);
   const imageStageRef = useRef<HTMLDivElement>(null);
-  const queryKey = ["viewer", caseCode] as const;
+  const queryKey = useMemo(() => ["viewer", caseCode] as const, [caseCode]);
   const [imageNaturalSize, setImageNaturalSize] = useState<ImageSize | null>(
     null,
   );
@@ -118,6 +126,17 @@ export function ViewerRealtime({
     },
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    // Fallback while the Realtime channel hasn't confirmed health: a lost
+    // broadcast ping otherwise leaves the viewer stale forever (broadcast has
+    // no replay). Stops once the channel is SUBSCRIBED or the case has ended,
+    // so a healthy viewer makes no periodic requests. Background refetching is
+    // left off: the room device is focused on its single tab by design.
+    refetchInterval: (query) => {
+      const ended = (query.state.data as ViewerQueryData | undefined)?.ended;
+      return shouldUseFallbackRefetch(channelStatus, ended ?? initialEnded)
+        ? VIEWER_FALLBACK_REFETCH_INTERVAL_MS
+        : false;
+    },
     initialData: {
       ended: initialEnded,
       findings: initialFindings.map((f) => ({
@@ -142,7 +161,9 @@ export function ViewerRealtime({
       .on("broadcast", { event: VIEWER_BROADCAST_EVENT }, () => {
         invalidate();
       })
-      .subscribe();
+      .subscribe((status) => {
+        setChannelStatus(status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
