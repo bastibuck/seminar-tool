@@ -153,11 +153,11 @@ set_var() {
 }
 
 _upsert_vercel_env() {
-  local key="$1" value="$2" env="$3"
+  local key="$1" value="$2" env="$3" extra="${4:-}"
   local cmd
   cmd=$(vercel_cmd)
   if [[ -n "$cmd" ]]; then
-    if $cmd env add "$key" "$env" --force <<< "$value" >/dev/null 2>&1; then
+    if $cmd env add "$key" "$env" --force $extra <<< "$value" >/dev/null 2>&1; then
       printf '  %s✓ set%s Vercel env %s (%s)\n' "$GREEN" "$RESET" "$key" "$env"
       return
     fi
@@ -488,7 +488,11 @@ UPSTREAM_ENV=(DATABASE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KE
 for key in "${UPSTREAM_ENV[@]}"; do
   val=$(_existing "$key" || true)
   if [[ -n "$val" ]]; then
-    _upsert_vercel_env "$key" "$val" "production"
+    extra=""
+    if [[ "$key" == "MUTATIONS_ENABLED" ]]; then
+      extra="--no-sensitive"
+    fi
+    _upsert_vercel_env "$key" "$val" "production" "$extra"
   else
     warn "$key not found in $ENV_FILE — set it manually in the Vercel dashboard"
   fi
