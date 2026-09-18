@@ -41,6 +41,8 @@ The home page is the cockpit start page: pick a Case Type (the database is seede
 
 `supabase/seed.sql` ships one example Case Type ("Akuter Thoraxschmerz") with its findings. It runs automatically on `npm run db:reset` / `npm test` and is idempotent: re-running it never duplicates rows. Edits to already-seeded content only take effect after `npm run db:reset`.
 
+Seeded (and backfilled) Findings point at `placeholder.svg` objects that no migration creates. Provision them once per database with `npm run db:backfill` (run after every `db:reset` in dev; run once against production). See ADR-0012.
+
 ## Testing
 
 ```sh

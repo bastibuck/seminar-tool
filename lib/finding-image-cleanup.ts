@@ -1,5 +1,5 @@
 import { sql as database } from "./db";
-import { removeFindingImage } from "./finding-images";
+import { productionFindingImageStorage } from "./finding-image/storage";
 
 export type CleanupItem = {
   id: string;
@@ -111,8 +111,20 @@ const productionStore: CleanupStore = {
   },
 };
 
+export async function rollbackOrphanFindingImage(
+  path: string,
+  executor: SqlExecutor = database,
+): Promise<void> {
+  await enqueueFindingImageCleanup(path, executor);
+}
+
 export async function runFindingImageCleanup(
   options: { limit?: number; now?: Date } = {},
 ): Promise<CleanupResult> {
-  return processFindingImageCleanup(productionStore, { remove: removeFindingImage }, options);
+  const storage = productionFindingImageStorage();
+  return processFindingImageCleanup(
+    productionStore,
+    { remove: (path) => storage.remove(path) },
+    options,
+  );
 }

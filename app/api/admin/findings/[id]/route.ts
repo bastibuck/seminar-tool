@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isLargerThanBytes } from "../../http";
 import { findingNameIsAvailable, getFinding, renameFinding, replaceFindingImage } from "@/lib/admin";
-import { validateFindingImage } from "@/lib/finding-image-validation";
-import { validateAndProcessFindingImage, FINDING_IMAGE_REQUEST_MAX_BYTES } from "@/lib/finding-image-processing";
+import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
 import { env } from "@/lib/env";
 import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
@@ -30,9 +29,7 @@ export async function PATCH(request: Request, context: Context) {
   if (nameCheck.status === "empty-name") return NextResponse.json({ error: "Bitte gib einen Namen ein." }, { status: 400 });
   if (nameCheck.status === "duplicate-name") return NextResponse.json({ error: "Ein Befund mit diesem Namen existiert bereits." }, { status: 409 });
   if (image instanceof File && image.size > 0) {
-    const validationError = validateFindingImage(image);
-    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
-    const processed = await validateAndProcessFindingImage(image);
+    const processed = await processFindingImage(image);
     if (!processed.ok) return NextResponse.json({ error: processed.error }, { status: 400 });
     const replacement = await replaceFindingImage(id, processed);
     if (replacement === "unknown-finding") return NextResponse.json({ error: "Befund nicht gefunden." }, { status: 404 });

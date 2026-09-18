@@ -1,19 +1,12 @@
 import sharp from "sharp";
 
-import { FINDING_IMAGE_TYPES } from "./finding-image-validation";
-
-type FindingImageFormat = (typeof FINDING_IMAGE_TYPES)[number];
-
-export const FINDING_IMAGE_MAX_DIMENSION = 4096;
-export const FINDING_IMAGE_MAX_PIXELS = 16_000_000;
-export const FINDING_IMAGE_REQUEST_MAX_BYTES = 12 * 1024 * 1024;
-
-const FORMAT_TO_CONTENT_TYPE: Record<string, FindingImageFormat> = {
-  jpeg: "image/jpeg",
-  jpg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-};
+import type { FindingImageFormat } from "./formats";
+import {
+  FINDING_IMAGE_MAX_DIMENSION,
+  FINDING_IMAGE_MAX_PIXELS,
+  FORMAT_TO_CONTENT_TYPE,
+} from "./formats";
+import { validateFindingImage } from "./validate";
 
 export type ProcessedFindingImage = {
   ok: true;
@@ -23,9 +16,12 @@ export type ProcessedFindingImage = {
 
 const NOT_VALID_IMAGE_ERROR = "Die Datei ist kein gültiges Bild.";
 
-export async function validateAndProcessFindingImage(
+export async function processFindingImage(
   file: File,
 ): Promise<ProcessedFindingImage | { ok: false; error: string }> {
+  const basicError = validateFindingImage(file);
+  if (basicError) return { ok: false, error: basicError };
+
   const bytes = Buffer.from(await file.arrayBuffer());
 
   let metadata: { width?: number; height?: number; format?: string };
@@ -56,7 +52,10 @@ export async function validateAndProcessFindingImage(
     };
   }
 
-  if (width > FINDING_IMAGE_MAX_DIMENSION || height > FINDING_IMAGE_MAX_DIMENSION) {
+  if (
+    width > FINDING_IMAGE_MAX_DIMENSION ||
+    height > FINDING_IMAGE_MAX_DIMENSION
+  ) {
     return {
       ok: false,
       error: `Das Bild ist zu groß. Die maximalen Dimensionen betragen ${FINDING_IMAGE_MAX_DIMENSION}×${FINDING_IMAGE_MAX_DIMENSION} Pixel.`,
