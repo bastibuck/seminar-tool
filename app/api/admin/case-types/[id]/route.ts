@@ -9,8 +9,7 @@ import {
 } from "@/lib/admin";
 
 import { isLargerThanBytes, jsonError } from "../../http";
-import { validateFindingImage } from "@/lib/finding-image-validation";
-import { validateAndProcessFindingImage, FINDING_IMAGE_REQUEST_MAX_BYTES } from "@/lib/finding-image-processing";
+import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
 import { env } from "@/lib/env";
 import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 
@@ -48,9 +47,7 @@ export async function POST(
   const name = String(formData.get("name") ?? "").trim();
   const image = formData.get("image");
   if (!(image instanceof File)) return jsonError("Bitte wähle ein Bild aus.", 400);
-  const validationError = validateFindingImage(image);
-  if (validationError) return jsonError(validationError, 400);
-  const processed = await validateAndProcessFindingImage(image);
+  const processed = await processFindingImage(image);
   if (!processed.ok) return jsonError(processed.error, 400);
 
   const result = await createFinding(id, name, processed);

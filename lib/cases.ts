@@ -1,6 +1,6 @@
 import { generateCaseCode } from "./case-code";
 import { sql } from "./db";
-import { signFindingImages } from "./finding-images";
+import { signFindingImages } from "./finding-image";
 
 export type CaseType = {
   id: string;

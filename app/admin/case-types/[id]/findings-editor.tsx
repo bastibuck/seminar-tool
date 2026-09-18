@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { validateFindingImage } from "@/lib/finding-image-validation";
+import { validateFindingImage } from "@/lib/finding-image/validate";
 
 export type EditorFinding = {
   id: string;

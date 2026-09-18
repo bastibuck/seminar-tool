@@ -1,7 +1,6 @@
 import { sql } from "./db";
-import { enqueueFindingImageCleanup } from "./finding-image-cleanup";
-import { signFindingImages, uploadFindingImage } from "./finding-images";
-import type { ProcessedFindingImage } from "./finding-image-processing";
+import { rollbackOrphanFindingImage, saveFindingImage, signFindingImages } from "./finding-image";
+import type { ProcessedFindingImage } from "./finding-image";
 
 export type AdminFinding = {
   id: string;
@@ -126,61 +125,77 @@ export async function createFinding(
 ): Promise<CreateFindingResult> {
   const trimmed = name.trim();
   if (trimmed === "") return { status: "empty-name" };
-  let uploadedPath: string | null = null;
-  try {
-    return await sql.begin<CreateFindingResult>(async (tx) => {
-      const typeCheck = await tx<{ id: string }[]>`
-      select id from case_types where id = ${caseTypeId}
-      `;
-      if (typeCheck.length === 0) return { status: "unknown-type" };
 
-      const existing = await tx<{ id: string }[]>`
-      select id from findings
-      where case_type_id = ${caseTypeId} and name = ${trimmed}
+  const typeExists = await sql<{ exists: boolean }[]>`
+    select exists(select 1 from case_types where id = ${caseTypeId}) as "exists"
+  `;
+  if (!typeExists[0]?.exists) return { status: "unknown-type" };
+
+  const duplicate = await sql<{ id: string }[]>`
+    select id from findings
+    where case_type_id = ${caseTypeId} and name = ${trimmed}
+    limit 1
+  `;
+  if (duplicate.length > 0) return { status: "duplicate-name" };
+
+  const id = crypto.randomUUID();
+  const imagePath = await saveFindingImage(id, image);
+
+  let status: CreateFindingResult;
+  try {
+    status = await sql.begin<CreateFindingResult>(async (tx) => {
+      const racingDuplicate = await tx<{ id: string }[]>`
+        select id from findings
+        where case_type_id = ${caseTypeId} and name = ${trimmed}
+        limit 1
       `;
-      if (existing.length > 0) return { status: "duplicate-name" };
+      if (racingDuplicate.length > 0) return { status: "duplicate-name" };
 
       const maxPos = await tx<{ maxPos: number | null }[]>`
-      select max(position) as "maxPos" from findings
-      where case_type_id = ${caseTypeId}
+        select max(position) as "maxPos" from findings
+        where case_type_id = ${caseTypeId}
       `;
       const nextPosition = (maxPos[0]?.maxPos ?? 0) + 1;
 
-      const id = crypto.randomUUID();
-      uploadedPath = await uploadFindingImage(id, image);
       await tx`
-          insert into findings (id, case_type_id, name, position, image_path)
-          values (${id}, ${caseTypeId}, ${trimmed}, ${nextPosition}, ${uploadedPath})
-        `;
+        insert into findings (id, case_type_id, name, position, image_path)
+        values (${id}, ${caseTypeId}, ${trimmed}, ${nextPosition}, ${imagePath})
+      `;
       return { status: "ok", id };
     });
   } catch (error) {
-    if (uploadedPath) {
-      try {
-        await enqueueFindingImageCleanup(uploadedPath);
-      } catch {
-        // Preserve the operation error if the database is unavailable for queueing.
-      }
+    try {
+      await rollbackOrphanFindingImage(imagePath);
+    } catch {
+      // Preserve the operation error if the database is unavailable for queueing.
     }
     throw error;
   }
+
+  if (status.status === "duplicate-name") {
+    try {
+      await rollbackOrphanFindingImage(imagePath);
+    } catch {
+      // Preserve the duplicate-name result if queueing is unavailable.
+    }
+  }
+  return status;
 }
 
 export async function getFinding(findingId: string) {
-  const rows = await sql<{ id: string; caseTypeId: string; name: string; imagePath: string }[]>`
-    select id, case_type_id as "caseTypeId", name, image_path as "imagePath"
+  const rows = await sql<{ id: string; caseTypeId: string; name: string }[]>`
+    select id, case_type_id as "caseTypeId", name
     from findings where id = ${findingId}
   `;
   const finding = rows[0];
-  if (!finding) return null;
-  const imageUrls = await signFindingImages([{ id: finding.id, path: finding.imagePath }]);
-  return { ...finding, imageUrl: imageUrls.get(finding.imagePath) ?? "" };
+  return finding ?? null;
 }
 
 export async function replaceFindingImage(findingId: string, image: ProcessedFindingImage): Promise<"ok" | "unknown-finding"> {
-  const path = await uploadFindingImage(findingId, image);
+  const path = await saveFindingImage(findingId, image);
+  let replaced = false;
   try {
-    const replaced = await sql.begin<boolean>(async (tx) => {
+    replaced = await sql.begin<boolean>(async (tx) => {
       const existing = await tx<{ imagePath: string }[]>`
         select image_path as "imagePath" from findings where id = ${findingId} for update
       `;
@@ -190,21 +205,21 @@ export async function replaceFindingImage(findingId: string, image: ProcessedFin
       `;
       return rows.length > 0;
     });
-    if (!replaced) {
-      try {
-        await enqueueFindingImageCleanup(path);
-      } catch {
-        // Preserve the result if the database is unavailable for queueing.
-      }
-      return "unknown-finding";
-    }
   } catch (error) {
     try {
-      await enqueueFindingImageCleanup(path);
+      await rollbackOrphanFindingImage(path);
     } catch {
       // Preserve the operation error if the database is unavailable for queueing.
     }
     throw error;
+  }
+  if (!replaced) {
+    try {
+      await rollbackOrphanFindingImage(path);
+    } catch {
+      // Preserve the result if the database is unavailable for queueing.
+    }
+    return "unknown-finding";
   }
   return "ok";
 }
