@@ -36,7 +36,7 @@ Realtime integration tests read the same vars, so set them before running `npm t
 
 The home page is the cockpit start page: pick a Case Type (the database is seeded with an example, and admins can author more), name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
 
-Cockpit and admin require an Instructor account; the Viewer remains public. See [Instructor accounts](docs/instructor-accounts.md) for signup configuration, review and manual onboarding. Do not enable production access until #66 and #67 are complete.
+Cockpit and admin require an explicitly enrolled Instructor account; creating a Supabase Auth user alone does not grant access. The Viewer remains public. See [Instructor accounts](docs/instructor-accounts.md) for signup configuration, review and [how to add an Instructor](docs/instructor-accounts.md#add-an-instructor). Do not enable production access until #66 and #67 are complete.
 
 ## Seeding
 

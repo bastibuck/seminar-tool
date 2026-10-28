@@ -387,6 +387,8 @@ else
     "20260910000001_purge_rate_limits.sql"
     "20260910000002_revoke_anon_enable_rls.sql"
     "20261028000000_instructor_auth.sql"
+    "20261028000001_instructor_inactivity.sql"
+    "20261028000002_explicit_instructor_enrollment.sql"
   )
   for f in "${MIGRATION_FILES[@]}"; do
     step "$f"
@@ -399,7 +401,7 @@ fi
 # Enroll only explicitly approved existing users after the migration, and
 # provision a dashboard-created test Instructor before deploying.
 stage "Prepare Instructor access"
-step "Follow docs/instructor-accounts.md to enroll approved users and create a test Instructor."
+step "Follow docs/instructor-accounts.md to create and explicitly enroll approved users, including a test Instructor."
 step "Keep external access blocked; complete all #67 checks before enabling it."
 if ! confirm "Are the reviewed accounts and test Instructor prepared?"; then
   warn "Prepare Instructor access before deploying."

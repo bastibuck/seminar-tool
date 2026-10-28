@@ -3,6 +3,7 @@ import { describe, expect, inject, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
 import { connectTestDb, createCase, extractCaseTypeId, extractCode, getStartPage, resolveLocation } from "../support/cases";
+import { enrollInstructor } from "../support/instructor-enrollment";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const admin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -116,6 +117,7 @@ describe("Instructor access", () => {
     expect(error).toBeNull();
     const userId = data.user!.id;
     try {
+      await enrollInstructor(userId);
       const login = await fetch(`${BASE_URL}/api/instructor/sign-in`, {
         method: "POST",
         redirect: "manual",
@@ -196,20 +198,41 @@ describe("Instructor access", () => {
     expect(location.searchParams.get("next")).toBe("/admin?view=all");
   });
 
-  it("does not trust an unreviewed existing Auth account", async () => {
+  it("requires explicit enrollment for a newly created Auth account", async () => {
     const email = `unreviewed-${crypto.randomUUID()}@example.test`;
     const password = "Temporary password 123";
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     expect(error).toBeNull();
     const db = connectTestDb();
     try {
-      // Models an account present before the migration, which has no enrollment row.
-      await db`delete from public.instructors where user_id = ${data.user!.id}`;
+      const enrolled = await db`select user_id from public.instructors where user_id = ${data.user!.id}`;
+      expect(enrolled).toHaveLength(0);
       const unreviewed = await post("/api/instructor/sign-in", { email, password });
       expect(unreviewed.headers.get("location")).toContain("/sign-in?");
+      expect(unreviewed.headers.getSetCookie().some((cookie) => cookie.startsWith("instructor_session="))).toBe(false);
+      await checkProtectedCategories("", false);
+
+      // An Auth token alone is not an Instructor application session.
+      const direct = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const directLogin = await direct.auth.signInWithPassword({ email, password });
+      expect(directLogin.error).toBeNull();
+      expect((await fetch(`${BASE_URL}/api/admin/case-types`, {
+        headers: { authorization: `Bearer ${directLogin.data.session!.access_token}` },
+      })).status).toBe(401);
+
       await db`insert into public.instructors(user_id) values (${data.user!.id})`;
       const reviewed = await post("/api/instructor/sign-in", { email, password });
       expect(reviewed.headers.get("location")).toBe("/password-setup");
+      const setup = await post("/api/instructor/password-setup", {
+        password: "A different password 123", confirmation: "A different password 123",
+      }, cookieFrom(reviewed));
+      const cookie = cookieFrom(setup);
+      expect((await fetch(`${BASE_URL}/api/admin/case-types`, { headers: { cookie } })).status).toBe(200);
+      await db`delete from public.instructors where user_id = ${data.user!.id}`;
+      expect((await fetch(`${BASE_URL}/api/admin/case-types`, { headers: { cookie } })).status).toBe(401);
+      expect((await post("/api/instructor/sign-in", { email, password: "A different password 123" })).headers.get("location")).toContain("/sign-in?");
     } finally {
       await admin.auth.admin.deleteUser(data.user!.id);
       await db.end();
@@ -243,6 +266,7 @@ describe("Instructor access", () => {
     const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     expect(created.error).toBeNull();
     try {
+      await enrollInstructor(created.data.user!.id);
       const one = cookieFrom(await post("/api/instructor/sign-in", { email, password }));
       const two = cookieFrom(await post("/api/instructor/sign-in", { email, password }));
       const [first, second] = await Promise.all([
@@ -264,6 +288,7 @@ describe("Instructor access", () => {
     const password = "Temporary password 123";
     const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     expect(created.error).toBeNull();
+    await enrollInstructor(created.data.user!.id);
     const db = connectTestDb();
     const observer = connectTestDb();
     let unlock!: () => void;
@@ -309,6 +334,7 @@ describe("Instructor access", () => {
     const password = "Temporary password 123";
     const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     expect(created.error).toBeNull();
+    await enrollInstructor(created.data.user!.id);
     const db = connectTestDb();
     const observer = connectTestDb();
     let unlock!: () => void;
@@ -357,6 +383,7 @@ describe("Instructor access", () => {
     const created = await admin.auth.admin.createUser({ email, password: temporaryPassword, email_confirm: true });
     expect(created.error).toBeNull();
     try {
+      await enrollInstructor(created.data.user!.id);
       const pending = cookieFrom(await post("/api/instructor/sign-in", { email, password: temporaryPassword }));
       const setup = await post("/api/instructor/password-setup", { password, confirmation: password }, pending);
       expect(setup.headers.get("location")).toBe("/");
@@ -380,6 +407,7 @@ describe("Instructor access", () => {
     const db = connectTestDb();
     const name = `Shared case ${crypto.randomUUID()}`;
     try {
+      await enrollInstructor(userId);
       const pending = cookieFrom(await post("/api/instructor/sign-in", { email, password: temporaryPassword }));
       const secondCookie = cookieFrom(await post("/api/instructor/password-setup", { password, confirmation: password }, pending));
       const caseTypeId = extractCaseTypeId(await getStartPage());
@@ -404,6 +432,7 @@ describe("Instructor access", () => {
       expect(recreated.error).toBeNull();
       expect(recreated.data.user!.id).not.toBe(userId);
       userId = recreated.data.user!.id;
+      await enrollInstructor(userId);
       const newLogin = await post("/api/instructor/sign-in", { email, password: temporaryPassword });
       expect(newLogin.headers.get("location")).toBe("/password-setup");
       const newSetup = await post("/api/instructor/password-setup", { password, confirmation: password }, cookieFrom(newLogin));

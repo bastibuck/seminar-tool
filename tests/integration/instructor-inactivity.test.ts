@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { env } from "../../lib/env";
 import { BASE_URL } from "../setup/server-address";
 import { connectTestDb } from "../support/cases";
+import { enrollInstructor } from "../support/instructor-enrollment";
 
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -59,6 +60,7 @@ describe("Instructor inactivity", () => {
     expect(created.error).toBeNull();
     const db = connectTestDb();
     try {
+      await enrollInstructor(created.data.user!.id);
       const temporary = cookieFrom(await post("/api/instructor/sign-in", { email, password: temporaryPassword }));
       const one = cookieFrom(await post("/api/instructor/password-setup", { password, confirmation: password }, temporary));
       const two = cookieFrom(await post("/api/instructor/sign-in", { email, password }));

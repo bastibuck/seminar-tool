@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import type { TestProject } from "vitest/node";
 
+import { enrollInstructor } from "../support/instructor-enrollment";
+
 declare module "vitest" {
   export interface ProvidedContext {
     instructorCookie: string;
@@ -17,6 +19,7 @@ export async function provisionInstructor(project: TestProject, baseUrl: string)
   const { data, error } = await admin.auth.admin.createUser({ email, password: temporaryPassword, email_confirm: true });
   if (error || !data.user) throw error ?? new Error("Could not create test Instructor");
   try {
+    await enrollInstructor(data.user.id);
     const login = await fetch(`${baseUrl}/api/instructor/sign-in`, {
       method: "POST", redirect: "manual",
       body: new URLSearchParams({ email, password: temporaryPassword }),
