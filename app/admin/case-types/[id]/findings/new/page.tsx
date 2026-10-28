@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { getCaseTypeDetail } from "@/lib/admin";
+import { requireInstructorPage } from "@/lib/instructor-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewFindingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireInstructorPage(`/admin/case-types/${encodeURIComponent(id)}/findings/new`);
   const detail = await getCaseTypeDetail(id);
   if (!detail) notFound();
   return (

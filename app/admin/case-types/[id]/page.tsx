@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getCaseTypeDetail } from "@/lib/admin";
+import { requireInstructorPage } from "@/lib/instructor-auth";
 
 import { FindingsEditor } from "./findings-editor";
 
@@ -15,6 +16,7 @@ const CASE_TYPE_ID_PATTERN =
 
 export default async function CaseTypePage({ params }: CaseTypePageProps) {
   const { id } = await params;
+  await requireInstructorPage(`/admin/case-types/${encodeURIComponent(id)}`);
 
   if (!CASE_TYPE_ID_PATTERN.test(id)) notFound();
 

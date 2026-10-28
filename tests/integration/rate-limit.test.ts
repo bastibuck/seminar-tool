@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "../support/instructor-fetch";
 
 function headersFor(ip: string): HeadersInit {
   return { "x-forwarded-for": ip };

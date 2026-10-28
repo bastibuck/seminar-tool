@@ -11,6 +11,7 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("Content-Security-Policy", cspHeader);
+  requestHeaders.set("x-instructor-destination", `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },

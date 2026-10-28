@@ -1,4 +1,5 @@
 import { listCaseTypes } from "@/lib/cases";
+import { requireInstructorPage } from "@/lib/instructor-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,7 @@ type HomeProps = {
 };
 
 export default async function Home({ searchParams }: HomeProps) {
+  await requireInstructorPage("/");
   const { error } = await searchParams;
   const caseTypes = await listCaseTypes();
 

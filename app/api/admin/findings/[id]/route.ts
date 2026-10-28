@@ -3,20 +3,21 @@ import { NextResponse } from "next/server";
 import { isLargerThanBytes } from "../../http";
 import { findingNameIsAvailable, getFinding, renameFinding, replaceFindingImage } from "@/lib/admin";
 import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
-import { env } from "@/lib/env";
-import { mutationsDisabledResponse } from "@/lib/mutation-safety";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const finding = await getFinding((await context.params).id);
   if (!finding) return NextResponse.json({ error: "Befund nicht gefunden." }, { status: 404 });
   return NextResponse.json({ ok: true, finding: { id: finding.id, caseTypeId: finding.caseTypeId, name: finding.name } });
 }
 
 export async function PATCH(request: Request, context: Context) {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const id = (await context.params).id;
   if (isLargerThanBytes(request, FINDING_IMAGE_REQUEST_MAX_BYTES)) {
     return NextResponse.json({ error: "Die Anfrage ist zu groß." }, { status: 413 });

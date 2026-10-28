@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getCaseOverview } from "@/lib/cases";
 import { createRateLimiter, rateLimitExceededResponse } from "@/lib/rate-limit";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -11,6 +12,8 @@ export async function GET(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const cockpitReadLimiter = await createRateLimiter("cockpit:read", 120, 60);
   const { allowed } = await cockpitReadLimiter.check(request);
   if (!allowed) {

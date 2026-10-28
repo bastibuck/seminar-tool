@@ -6,7 +6,6 @@ export const env = createEnv({
     DATABASE_URL: z.string().min(1),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     CRON_SECRET: z.string().min(1),
-    MUTATIONS_ENABLED: z.enum(["true", "false"]).transform((value) => value === "true"),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z
@@ -32,7 +31,6 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
-    MUTATIONS_ENABLED: process.env.MUTATIONS_ENABLED,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },

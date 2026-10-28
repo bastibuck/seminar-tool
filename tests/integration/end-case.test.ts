@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "../support/instructor-fetch";
 import {
   connectTestDb,
   createCase,

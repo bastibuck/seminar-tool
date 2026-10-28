@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 
 import { caseTypeExists, createCase } from "@/lib/cases";
-import { env } from "@/lib/env";
-import { mutationsDisabledResponse } from "@/lib/mutation-safety";
 import { redirectTo } from "@/lib/redirect";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 function redirectToError(message: string): NextResponse {
   return redirectTo(`/?error=${encodeURIComponent(message)}`);
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
   const caseTypeId = String(formData.get("caseTypeId") ?? "").trim();

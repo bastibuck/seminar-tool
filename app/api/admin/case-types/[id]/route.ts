@@ -10,17 +10,18 @@ import {
 
 import { isLargerThanBytes, jsonError } from "../../http";
 import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
-import { env } from "@/lib/env";
-import { mutationsDisabledResponse } from "@/lib/mutation-safety";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { id } = await context.params;
   const detail = await getCaseTypeDetail(id);
   if (!detail) return jsonError("Falltyp nicht gefunden.", 404);
@@ -36,8 +37,8 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { id } = await context.params;
   if (isLargerThanBytes(request, FINDING_IMAGE_REQUEST_MAX_BYTES)) {
     return jsonError("Die Anfrage ist zu groß.", 413);
@@ -67,8 +68,8 @@ export async function PATCH(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { id } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
@@ -91,8 +92,8 @@ export async function DELETE(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { id } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();
@@ -115,8 +116,8 @@ export async function PUT(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { id } = await context.params;
   const formData = await request.formData();
   const findingA = String(formData.get("findingA") ?? "").trim();

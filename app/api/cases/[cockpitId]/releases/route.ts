@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 import { notifyViewerOfChange } from "@/lib/broadcast";
 import { setFindingReleased, type ReleaseIntent } from "@/lib/cases";
-import { env } from "@/lib/env";
-import { mutationsDisabledResponse } from "@/lib/mutation-safety";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
@@ -17,8 +16,8 @@ export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const { cockpitId } = await context.params;
   const formData = await request.formData();
   const findingId = String(formData.get("findingId") ?? "").trim();

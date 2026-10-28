@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { env } from "../../lib/env";
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "../support/instructor-fetch";
 import {
   connectTestDb,
   createCase,

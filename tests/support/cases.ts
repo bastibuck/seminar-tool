@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { expect } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "./instructor-fetch";
 
 export const CODE_PATTERN = /[2-9A-HJKMNP-TV-Z]{4}-[2-9A-HJKMNP-TV-Z]{4}/;
 

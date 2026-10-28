@@ -20,7 +20,7 @@ npm run dev          # start the app at http://localhost:3000
 
 ### Environment variables
 
-All environment variables are read through `lib/env.ts`, a single zod-validated, type-safe module that fails fast when configuration is missing or malformed. None of the six variables has a code-side default: copy `.env.example` to `.env.local` (already gitignored) and fill in real values, or the app refuses to start.
+All environment variables are read through `lib/env.ts`, a single zod-validated, type-safe module that fails fast when configuration is missing or malformed. None of the five variables has a code-side default: copy `.env.example` to `.env.local` (already gitignored) and fill in real values, or the app refuses to start.
 
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are read by the Supabase client. The anon key is a **publishable** key — public by design when paired with RLS — so it is safe in the browser bundle, but it is **environment-specific**:
 
@@ -31,11 +31,11 @@ All environment variables are read through `lib/env.ts`, a single zod-validated,
 
 `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CRON_SECRET` are server-only secrets. `CRON_SECRET` authorizes the nightly finding-image cleanup endpoint; generate a local value with `openssl rand -base64 32`.
 
-`MUTATIONS_ENABLED` is a fail-closed deployment safety lock for user-triggered writes and must be exactly `true` or `false` — any other value fails validation. Set it to `true` for local development or a demo deployment where writes are intentionally enabled, and to `false` in production to return `503 Service Unavailable` from mutation routes. Changing the Vercel environment variable requires a redeploy; this is not a runtime toggle. The integration test server sets it explicitly to `true`.
-
 Realtime integration tests read the same vars, so set them before running `npm test`.
 
 The home page is the cockpit start page: pick a Case Type (the database is seeded with an example, and admins can author more), name the Case, and you land on a private, unguessable cockpit URL showing the case name, the type's findings as a checklist (with their optional notes), and the short case code viewers will use to join. Each finding has a release toggle: releasing inserts a timestamped release record, un-releasing deletes it without a trace. When the roleplay is done, "Fall beenden" confirms and ends the case: the server rejects any further release or un-release, and viewers see a quiet "Fall beendet" banner while every released finding stays readable.
+
+Cockpit and admin require an Instructor account; the Viewer remains public. See [Instructor accounts](docs/instructor-accounts.md) for signup configuration, review and manual onboarding. Do not enable production access until #66 and #67 are complete.
 
 ## Seeding
 
@@ -77,15 +77,17 @@ The wizard walks through every step: creating the Supabase project, applying mig
 
 ### Deployment path (merge to production)
 
-1. Merge to `main` — Vercel auto-deploys if the GitHub integration is linked.
-2. Apply any new migrations to the production database (`npx supabase db push` or SQL Editor).
+**Instructor authentication rollout:** complete #66 and #67 first. Block external application access during rollout. Disable hosted public sign-up, apply the Instructor migration before deploying code that queries its tables, review existing accounts explicitly, and verify hosted settings and sessions as described in [Instructor accounts](docs/instructor-accounts.md). Restore access only after all checks pass. A local configuration file does not change hosted Auth settings.
+
+1. Apply any new migrations to the production database (`npx supabase db push` or SQL Editor), with external access blocked during the Instructor rollout.
+2. Merge to `main` — Vercel auto-deploys if the GitHub integration is linked.
 3. Verify Vercel Cron jobs in the dashboard (Settings → Cron Jobs).
 4. Create or update Case Types and Findings via the admin interface (`/admin`).
 5. Run the smoke test checklist.
 
 ### Production environment variables
 
-All six variables from `.env.example` are required in Vercel (Settings → Environment Variables, scope: Production):
+All five variables from `.env.example` are required in Vercel (Settings → Environment Variables, scope: Production):
 
 | Variable | Source | Notes |
 |---|---|---|
@@ -94,7 +96,6 @@ All six variables from `.env.example` are required in Vercel (Settings → Envir
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → Project API keys → anon / publishable | Publishable by design when paired with RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → Project API keys → service_role (secret) | Server-only; used for Storage operations and Broadcast |
 | `CRON_SECRET` | Generate with `openssl rand -base64 32` | Authorizes the nightly Vercel Cron cleanup endpoint |
-| `MUTATIONS_ENABLED` | Set to `true` | Fail-closed safety lock; `false` returns 503 on all write routes. Changing requires a redeploy |
 
 ### Production database
 
@@ -140,7 +141,7 @@ After deploying, verify:
 ### Troubleshooting
 
 **App refuses to start / env validation fails:**
-All six variables must be set. Check Vercel → Settings → Environment Variables. Changing a variable requires a redeploy.
+All five variables must be set. Check Vercel → Settings → Environment Variables. Changing a variable requires a redeploy.
 
 **Pages fail with `getaddrinfo ENOTFOUND db.<ref>.supabase.co`:**
 `DATABASE_URL` uses the direct connection hostname, which does not resolve from Vercel functions. Replace it with the **pooled** connection string: Supabase Dashboard → Settings → Database → Connection string → URI (Transaction/Pooler tab, host `.pooler.supabase.com`, port `6543`), then redeploy. The deployment wizard validates this at capture time.

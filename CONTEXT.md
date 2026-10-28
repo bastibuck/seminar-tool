@@ -1,19 +1,22 @@
 # Seminar Tool
 
-A live-teaching companion for medical roleplay workshops: doctors steer a patient case from a control room, releasing findings to students who work through the case in the seminar room.
+A live-teaching companion for medical roleplay workshops: Instructors steer a patient case from a control room, releasing findings to students who work through the case in the seminar room.
 
 ## Language
+
+**Instructor**:
+A person authorized to run courses and manage Case Types in Seminar Tool. Instructors are not necessarily doctors.
 
 **Case Type**:
 A predefined case script: a named scenario carrying its fixed list of findings, prepared before any workshop takes place.
 _Avoid_: template, blueprint, preset
 
 **Case**:
-A temporary named run of a case type, steered live by doctors and worked through by students in person. Multiple cases can run in parallel, and a case is not retained as a lasting record.
+A temporary named run of a case type, steered live by Instructors and worked through by students in person. Any Instructor with its Cockpit link can steer it; multiple cases can run in parallel, and a case is not retained as a lasting record.
 _Avoid_: session, room, workshop
 
 **Case Activity**:
-A real doctor action on a case: creating the case, releasing a finding, or un-releasing a finding. Viewer access and page views are not case activity.
+A real Instructor action on a case: creating the case, releasing a finding, or un-releasing a finding. Viewer access and page views are not case activity.
 _Avoid_: access, visit, heartbeat
 
 **Case Expiry**:
@@ -21,7 +24,7 @@ The point after which a case is eligible for deletion: 24 hours after it ends, o
 _Avoid_: archive, retention forever
 
 **Cockpit**:
-The doctor-facing surface used to start and steer a case and release findings.
+The Instructor-facing surface used to start and steer a case and release findings.
 _Avoid_: steering side, control room, admin
 
 **Viewer**:
@@ -33,7 +36,7 @@ A temporary Viewer interaction in which students enlarge and pan the image of a 
 _Avoid_: image editing, image annotation
 
 **Finding**:
-A predefined item in a case with a name and exactly one image that doctors hold back and release at the right moment. The image is required for a Finding to exist, may be replaced, and is shown to Viewers when the Finding is released. It is not independently removable.
+A predefined item in a case with a name and exactly one image that Instructors hold back and release at the right moment. The image is required for a Finding to exist, may be replaced, and is shown to Viewers when the Finding is released. It is not independently removable.
 _Avoid_: data item, entity, file, attachment
 
 Finding images are not live-updated in an already-open Viewer; a fresh page load reads the current image. Finding name and image changes do not need realtime propagation. Deleting a Finding also deletes its image; seeded Findings follow the same rule as every other Finding.
@@ -52,7 +55,7 @@ A temporary preview of a valid newly selected Finding image shown in the admin F
 The Cockpit may preview a Finding image before release. Replacing an image does not change any Case's release state and becomes visible to an already-running Case on the next Viewer page load. The Case Type editor keeps Finding previews, edit links, reorder controls, and deletion; deleting a Finding warns that its image will also be deleted. The Finding name is the image's alternative text in the Viewer.
 
 **Release**:
-The act of making a finding visible to all viewers of a case. A release optionally carries a contextual note the doctor types at release time; this note lives on the release, not the finding.
+The act of making a finding visible to all viewers of a case. A release optionally carries a contextual note typed at release time; this note lives on the release, not the finding.
 _Avoid_: publish, share, send
 
 **Un-release**:

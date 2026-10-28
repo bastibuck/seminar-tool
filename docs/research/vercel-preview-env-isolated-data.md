@@ -1,5 +1,7 @@
 # Making Vercel Preview deployments work with a working env set and isolated data
 
+**Historical note:** Instructor authentication removed `MUTATIONS_ENABLED`. References to that flag and a six-variable schema below describe the configuration at the time of this research; the current app requires five variables. Preview deployments still require isolated data.
+
 **Date:** 2026-09-16
 **Scope:** Researched against primary sources — vercel.com/docs (fetched 2026-09-16), nextjs.org/docs (v16.3.5), supabase.com/docs and the `t3-oss/t3-env` GitHub repo — for the question: how should this repo's six required environment variables be provided to Vercel Preview deployments without overlapping or interfering with production Supabase data and the prod cron job? Tailored to seminar-tool's fail-fast env design.
 

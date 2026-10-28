@@ -1,5 +1,7 @@
 # T3 env for environment configuration
 
+**Update (2026-10-28):** The mutation safety lock was removed after Instructor authentication was added. `MUTATIONS_ENABLED` is no longer used or required; the current schema has five variables. Sign-in is access control, not an emergency write-disable switch. References to the flag below describe the original decision.
+
 Environment access is centralized in a single zod-validated, type-safe module (`lib/env.ts`) built on `@t3-oss/env-nextjs`, replacing the scattered `process.env` reads that previously lived in `lib/supabase-config.ts`, `lib/db.ts`, `lib/mutation-safety.ts`, and the finding-image-cleanup route.
 
 Previously each variable was read directly where used, with ad-hoc local fallbacks and checks: a hardcoded localhost default for `NEXT_PUBLIC_SUPABASE_URL`, a silent `=== "true"` string comparison for `MUTATIONS_ENABLED`, and per-file throw-on-missing errors. Behavior was lenient — a missing or misspelled variable degraded silently.

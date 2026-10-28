@@ -153,11 +153,11 @@ set_var() {
 }
 
 _upsert_vercel_env() {
-  local key="$1" value="$2" env="$3" extra="${4:-}"
+  local key="$1" value="$2" env="$3"
   local cmd
   cmd=$(vercel_cmd)
   if [[ -n "$cmd" ]]; then
-    if $cmd env add "$key" "$env" --force $extra <<< "$value" >/dev/null 2>&1; then
+    if $cmd env add "$key" "$env" --force <<< "$value" >/dev/null 2>&1; then
       printf '  %s✓ set%s Vercel env %s (%s)\n' "$GREEN" "$RESET" "$key" "$env"
       return
     fi
@@ -340,7 +340,15 @@ write_env SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY"
 
 # ── Stage 4: Apply migrations ────────────────────────────────────────────
 stage "Apply database migrations"
-say "All 12 migrations from supabase/migrations/ must be applied."
+warn "Instructor access requires #66 and the production rollout checks in #67."
+warn "Block external application access and disable hosted public sign-up before applying migrations."
+step "Verify public registration fails directly in hosted Supabase Auth; keep email/password sign-in enabled."
+step "Review existing Auth accounts with the owner as required by #67; do not delete or approve them automatically."
+if ! confirm "Is #66 complete, access blocked, public signup denial verified, and the account review done?"; then
+  warn "Complete these prerequisites before continuing."
+  exit 1
+fi
+say "All migrations from supabase/migrations/ must be applied."
 say ""
 say "Option A (CLI — automated):"
 say "  npx supabase login        # one-time, opens browser"
@@ -378,6 +386,7 @@ else
     "20260910000000_rate_limits.sql"
     "20260910000001_purge_rate_limits.sql"
     "20260910000002_revoke_anon_enable_rls.sql"
+    "20261028000000_instructor_auth.sql"
   )
   for f in "${MIGRATION_FILES[@]}"; do
     step "$f"
@@ -385,6 +394,16 @@ else
   say ""
   say "Each file: paste contents → click 'Run' → verify 'Success'."
   pause "Press Enter once all migrations are applied"
+fi
+
+# Enroll only explicitly approved existing users after the migration, and
+# provision a dashboard-created test Instructor before deploying.
+stage "Prepare Instructor access"
+step "Follow docs/instructor-accounts.md to enroll approved users and create a test Instructor."
+step "Keep external access blocked; complete all #67 checks before enabling it."
+if ! confirm "Are the reviewed accounts and test Instructor prepared?"; then
+  warn "Prepare Instructor access before deploying."
+  exit 1
 fi
 
 # ── Stage 5: Verify pg_cron and cron jobs ────────────────────────────────
@@ -432,14 +451,6 @@ else
   say "Generated and saved CRON_SECRET"
 fi
 
-# ── Stage 7b: Set MUTATIONS_ENABLED ──────────────────────────────────────
-if _existing "MUTATIONS_ENABLED" >/dev/null 2>&1; then
-  note "MUTATIONS_ENABLED already set in $ENV_FILE"
-else
-  write_env MUTATIONS_ENABLED "true"
-  note "Set MUTATIONS_ENABLED=true (required for write routes)"
-fi
-
 # ── Stage 8: Set up Vercel ───────────────────────────────────────────────
 stage "Set up Vercel project"
 say "Create a Vercel project for this repository. Environment variables"
@@ -484,22 +495,18 @@ stage "Configure Vercel environment variables"
 say "Setting production environment variables via Vercel CLI..."
 say "(If the CLI is unavailable, set these in the Vercel dashboard → Settings → Environment Variables)"
 
-UPSTREAM_ENV=(DATABASE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CRON_SECRET MUTATIONS_ENABLED)
+UPSTREAM_ENV=(DATABASE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CRON_SECRET)
 for key in "${UPSTREAM_ENV[@]}"; do
   val=$(_existing "$key" || true)
   if [[ -n "$val" ]]; then
-    extra=""
-    if [[ "$key" == "MUTATIONS_ENABLED" ]]; then
-      extra="--no-sensitive"
-    fi
-    _upsert_vercel_env "$key" "$val" "production" "$extra"
+    _upsert_vercel_env "$key" "$val" "production"
   else
     warn "$key not found in $ENV_FILE — set it manually in the Vercel dashboard"
   fi
 done
 
 open_url "${VERCEL_PROJECT_URL}/settings/environment-variables"
-step "Settings → Environment Variables → verify all 6 variables are set for Production"
+step "Settings → Environment Variables → verify all 5 variables are set for Production"
 
 if confirm "All environment variables configured in Vercel?"; then
   say "Vercel environment variables configured"
@@ -553,7 +560,7 @@ fi
 
 # ── Final: Smoke test checklist ──────────────────────────────────────────
 _clear
-printf '\n%s%s  ✓ Deployment complete%s\n\n' "$BOLD" "$GREEN" "$RESET"
+printf '\n%s%s  Deployment verification%s\n\n' "$BOLD" "$GREEN" "$RESET"
 note "Production URL: ${VERCEL_PRODUCTION_URL:+https://${VERCEL_PRODUCTION_URL}}${VERCEL_PRODUCTION_URL:-<check the Vercel dashboard>}"
 note "Values written to: $ENV_FILE"
 (( ${#WRITTEN_ENV[@]} )) && note "Env vars: ${WRITTEN_ENV[*]}"
@@ -569,5 +576,10 @@ step "Cockpit: end the Case → verify Viewer shows 'Fall beendet' banner"
 step "Verify released findings remain readable after case ends"
 step "Vercel Cron: check /api/internal/finding-image-cleanup returns 401 without auth header"
 step "Local dev: run npm run db:start && npm run dev → confirm local still works"
+step "Complete the hosted signup, Instructor setup, deletion, Viewer and inactivity checks in #67."
 printf '\n'
-say "After the smoke test, record the result and close issue #8."
+if ! confirm "Have all #67 rollout and smoke-test checks passed?"; then
+  warn "Keep external access blocked until every check has passed."
+  exit 1
+fi
+say "Record the rollout result before restoring external access."

@@ -6,19 +6,20 @@ import {
   renameCaseType,
 } from "@/lib/admin";
 import { listCaseTypes } from "@/lib/cases";
-import { env } from "@/lib/env";
-import { mutationsDisabledResponse } from "@/lib/mutation-safety";
+import { requireInstructorApi } from "@/lib/instructor-auth";
 
 import { jsonError } from "../http";
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const caseTypes = await listCaseTypes();
   return NextResponse.json({ ok: true, caseTypes });
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
   const result = await createCaseType(name);
@@ -36,8 +37,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 export async function PUT(request: Request): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -58,8 +59,8 @@ export async function PUT(request: Request): Promise<NextResponse> {
 }
 
 export async function DELETE(request: Request): Promise<NextResponse> {
-  if (!env.MUTATIONS_ENABLED) return mutationsDisabledResponse();
-
+  const denied = await requireInstructorApi(request);
+  if (denied) return denied;
   const formData = await request.formData();
   const id = String(formData.get("id") ?? "").trim();
   const result = await deleteCaseType(id);

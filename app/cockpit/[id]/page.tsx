@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { formatCaseCode } from "@/lib/case-code";
 import { getCaseOverview } from "@/lib/cases";
+import { requireInstructorPage } from "@/lib/instructor-auth";
 
 import { CockpitClient } from "./cockpit-client";
 
@@ -18,6 +19,7 @@ export default async function CockpitPage({
   params,
 }: CockpitPageProps) {
   const { id } = await params;
+  await requireInstructorPage(`/cockpit/${encodeURIComponent(id)}`);
 
   if (!COCKPIT_ID_PATTERN.test(id)) notFound();
 

@@ -9,7 +9,6 @@ const REQUIRED_VARS = [
   "DATABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
   "CRON_SECRET",
-  "MUTATIONS_ENABLED",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
 ] as const;
@@ -139,7 +138,6 @@ describe("buildCsp", () => {
     process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.CRON_SECRET = "cron-secret";
-    process.env.MUTATIONS_ENABLED = "true";
     process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_HTTPS;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     vi.resetModules();

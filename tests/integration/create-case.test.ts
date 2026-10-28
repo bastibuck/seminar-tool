@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "../support/instructor-fetch";
 import {
   CODE_PATTERN,
   connectTestDb,

@@ -1,10 +1,12 @@
 import { listCaseTypes } from "@/lib/cases";
+import { requireInstructorPage } from "@/lib/instructor-auth";
 
 import { TypeListClient } from "./type-list-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  await requireInstructorPage("/admin");
   const caseTypes = await listCaseTypes();
 
   return (

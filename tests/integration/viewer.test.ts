@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { normalizeCode } from "../../lib/case-code";
 import { BASE_URL } from "../setup/server-address";
+import { fetch } from "../support/instructor-fetch";
 import {
   createCase,
   extractCaseTypeId,
