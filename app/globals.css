@@ -559,6 +559,14 @@ h3 {
   background: #edf4f3;
   cursor: zoom-in;
 }
+.finding-card__image--unavailable {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: var(--muted);
+  cursor: default;
+  text-align: center;
+}
 .finding-card__body {
   padding: 1rem;
 }

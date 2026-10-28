@@ -15,6 +15,7 @@ See [CONTEXT.md](CONTEXT.md) for domain vocabulary and [docs/adr/](docs/adr/) fo
 ```sh
 npm install          # install dependencies (includes the Supabase CLI)
 npm run db:start     # start the local Supabase stack (Postgres on :54322)
+npm run db:backfill  # provision seeded placeholder images; configure .env.local first
 npm run dev          # start the app at http://localhost:3000
 ```
 
@@ -41,7 +42,7 @@ Cockpit and admin require an Instructor account; the Viewer remains public. See 
 
 `supabase/seed.sql` ships one example Case Type ("Akuter Thoraxschmerz") with its findings. It runs automatically on `npm run db:reset` / `npm test` and is idempotent: re-running it never duplicates rows. Edits to already-seeded content only take effect after `npm run db:reset`.
 
-Seeded (and backfilled) Findings point at `placeholder.svg` objects that no migration creates. Provision them once per database with `npm run db:backfill` (run after every `db:reset` in dev; run once against production). See ADR-0012.
+Seeded (and backfilled) Findings point at `placeholder.svg` objects that no migration creates. Provision them once per database with `npm run db:backfill` (run after every `db:reset` in dev; run once against production). These are generic placeholders, not medical images; replace them in the admin editor when needed. See ADR-0012.
 
 ## Testing
 

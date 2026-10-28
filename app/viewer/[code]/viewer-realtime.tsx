@@ -96,6 +96,7 @@ export function ViewerRealtime({
   const queryClient = useQueryClient();
   const viewerSectionRef = useRef<HTMLElement>(null);
   const [expandedImage, setExpandedImage] = useState<FindingView | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, string>>({});
   const [channelStatus, setChannelStatus] = useState<
     REALTIME_SUBSCRIBE_STATES | undefined
   >(undefined);
@@ -260,25 +261,34 @@ export function ViewerRealtime({
           <ol className="finding-grid">
             {findings.map((finding) => (
               <li key={finding.id} className="finding-card">
-                <img
-                  src={finding.imageUrl}
-                  alt={finding.name}
-                  className="finding-card__image"
-                  onClick={(event) => {
-                    imageTriggerRef.current = event.currentTarget;
-                    openImage(finding);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+                {finding.imageUrl && failedImages[finding.id] !== finding.imageUrl ? (
+                  <img
+                    src={finding.imageUrl}
+                    alt={finding.name}
+                    className="finding-card__image"
+                    onClick={(event) => {
+                      imageTriggerRef.current = event.currentTarget;
                       openImage(finding);
-                    }
-                  }}
-                  onFocus={(event) => {
-                    imageTriggerRef.current = event.currentTarget;
-                  }}
-                  tabIndex={0}
-                />
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openImage(finding);
+                      }
+                    }}
+                    onFocus={(event) => {
+                      imageTriggerRef.current = event.currentTarget;
+                    }}
+                    onError={() => {
+                      setFailedImages((previous) => ({ ...previous, [finding.id]: finding.imageUrl }));
+                    }}
+                    tabIndex={0}
+                  />
+                ) : (
+                  <div className="finding-card__image finding-card__image--unavailable" role="status">
+                    Bild nicht verfügbar
+                  </div>
+                )}
                 <div className="finding-card__body">
                   <strong>{finding.name}</strong>
                   {finding.note ? <p>{finding.note}</p> : null}

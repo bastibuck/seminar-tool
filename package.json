@@ -12,7 +12,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:backfill": "node --env-file=.env.local scripts/backfill-placeholder-images.ts",
-    "test:prepare": "npm run db:start && supabase db reset && next build",
+    "test:prepare": "npm run db:start && supabase db reset && npm run db:backfill && next build",
     "test": "npm run test:prepare && vitest run"
   },
   "dependencies": {

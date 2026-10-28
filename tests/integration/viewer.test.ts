@@ -288,6 +288,21 @@ describe("viewer feed page", () => {
 });
 
 describe("viewer JSON API", () => {
+  it("returns downloadable images for released seeded findings", async () => {
+    const { cockpitUrl, code } = await createFreshCase("Bilder im Viewer");
+    const findings = extractFindingsFromCockpit(await getCockpit(cockpitUrl));
+    await toggleFinding({ cockpitUrl, findingId: findings[0]!.id, intent: "release" });
+
+    const response = await fetch(`${BASE_URL}/api/viewer/${code}`);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.findings).toHaveLength(1);
+    expect(body.findings[0].imageUrl).toBeTruthy();
+    const image = await fetch(body.findings[0].imageUrl);
+    expect(image.status).toBe(200);
+    expect(image.headers.get("content-type")).toContain("image/svg+xml");
+  });
+
   it("returns released findings as JSON in chronological order", async () => {
     const { cockpitUrl, code } = await createFreshCase("JSON Feed");
     const pathCode = code;
