@@ -1,5 +1,6 @@
 import { listCaseTypes } from "@/lib/cases";
 import { requireInstructorPage } from "@/lib/instructor-auth";
+import { InstructorSession } from "./instructor-session";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +9,12 @@ type HomeProps = {
 };
 
 export default async function Home({ searchParams }: HomeProps) {
-  await requireInstructorPage("/");
+  const instructor = await requireInstructorPage("/");
   const { error } = await searchParams;
   const caseTypes = await listCaseTypes();
 
   return (
-    <main className="shell shell--narrow">
+    <InstructorSession email={instructor.email} sessionKey={instructor.session_key} remainingMs={instructor.expires_at.getTime() - Date.now()}><main className="shell shell--narrow">
       <p className="eyebrow">Medizinisches Rollenspiel</p>
       <h1>Fall starten</h1>
       <p className="lede">Steuere einen vorbereiteten Fall im Cockpit und gib Befunde im richtigen Moment für den Seminarraum frei.</p>
@@ -22,7 +23,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {error}
         </p>
       ) : null}
-      <form className="surface form-card start-case-form" method="post" action="/api/cases">
+      <form className="surface form-card start-case-form" method="post" action={`/api/cases?instructor_session=${instructor.session_key}`}>
         <div className="start-case-form__field">
           <label htmlFor="caseTypeId">Falltyp</label>
           <span className="start-case-form__hint">Wähle das vorbereitete Szenario.</span>
@@ -50,6 +51,6 @@ export default async function Home({ searchParams }: HomeProps) {
           Fall starten
         </button>
       </form>
-    </main>
+    </main></InstructorSession>
   );
 }

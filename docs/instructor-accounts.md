@@ -43,4 +43,10 @@ An enrolled existing user is required to complete password setup. Do not delete 
 3. If a password is forgotten, delete and recreate the account in the dashboard and repeat onboarding. There is no password reset or account-settings flow. Recreating the same email creates a new identity and requires setup again.
 4. To revoke access, delete the account. Its existing application sessions are denied on the next protected request. Cases belong to no Instructor and are not deleted; Viewer access continues.
 
-On shared computers another person can use an unlocked browser. Do not hand over a signed-in browser; #66 supplies the required timeout and sign-out controls before production rollout.
+Each browser session expires after two hours without a qualifying Instructor navigation or action. Typing, background fetches, prefetches, Viewer use and Auth token refreshes do not extend it. Open protected pages lock without a keepalive; unsaved changes can be lost. There is no separate application session lifetime limit. Do not configure a Supabase Auth timebox or refresh-based inactivity limit as a substitute for this policy.
+
+Safari does not report whether a browser-initiated reload or address-bar/bookmark navigation was user-triggered. To avoid treating automatic refreshes as activity, these navigations do not renew the timeout in Safari; use a link or action within the protected interface instead. A sign-in attempt in another tab locks previously open protected pages even if that attempt fails.
+
+Protected pages require JavaScript for their on-screen lock. Cross-tab handover notifications use BroadcastChannel or browser local storage; keep at least one available on shared devices. The server still rejects expired or signed-out sessions independently of browser-side locking.
+
+On shared computers another person can use an unlocked browser before the timeout. Sign out before handing over the computer. Sign-out revokes that browser session, not other browsers. Confirm the timeout, locking and handover behavior during the #67 rollout checks; keep external access blocked until those checks pass.

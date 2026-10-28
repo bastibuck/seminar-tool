@@ -6,7 +6,7 @@ import {
   renameCaseType,
 } from "@/lib/admin";
 import { listCaseTypes } from "@/lib/cases";
-import { requireInstructorApi } from "@/lib/instructor-auth";
+import { requireInstructorApi, withInstructorDeadline } from "@/lib/instructor-auth";
 
 import { jsonError } from "../http";
 
@@ -17,7 +17,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   return NextResponse.json({ ok: true, caseTypes });
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function post(request: Request): Promise<NextResponse> {
   const denied = await requireInstructorApi(request);
   if (denied) return denied;
   const formData = await request.formData();
@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-export async function PUT(request: Request): Promise<NextResponse> {
+async function put(request: Request): Promise<NextResponse> {
   const denied = await requireInstructorApi(request);
   if (denied) return denied;
   const formData = await request.formData();
@@ -58,7 +58,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
   }
 }
 
-export async function DELETE(request: Request): Promise<NextResponse> {
+async function remove(request: Request): Promise<NextResponse> {
   const denied = await requireInstructorApi(request);
   if (denied) return denied;
   const formData = await request.formData();
@@ -76,3 +76,7 @@ export async function DELETE(request: Request): Promise<NextResponse> {
       return NextResponse.json({ ok: true });
   }
 }
+
+export const POST = withInstructorDeadline(post);
+export const PUT = withInstructorDeadline(put);
+export const DELETE = withInstructorDeadline(remove);

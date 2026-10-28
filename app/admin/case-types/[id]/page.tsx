@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getCaseTypeDetail } from "@/lib/admin";
 import { requireInstructorPage } from "@/lib/instructor-auth";
+import { InstructorSession } from "@/app/instructor-session";
 
 import { FindingsEditor } from "./findings-editor";
 
@@ -16,7 +17,7 @@ const CASE_TYPE_ID_PATTERN =
 
 export default async function CaseTypePage({ params }: CaseTypePageProps) {
   const { id } = await params;
-  await requireInstructorPage(`/admin/case-types/${encodeURIComponent(id)}`);
+  const instructor = await requireInstructorPage(`/admin/case-types/${encodeURIComponent(id)}`);
 
   if (!CASE_TYPE_ID_PATTERN.test(id)) notFound();
 
@@ -24,7 +25,7 @@ export default async function CaseTypePage({ params }: CaseTypePageProps) {
   if (!detail) notFound();
 
   return (
-    <main className="shell">
+    <InstructorSession email={instructor.email} sessionKey={instructor.session_key} remainingMs={instructor.expires_at.getTime() - Date.now()}><main className="shell">
       <p className="eyebrow">Falltyp bearbeiten</p>
       <p>
         <a href="/admin">← Zurück zu den Falltypen</a>
@@ -39,6 +40,6 @@ export default async function CaseTypePage({ params }: CaseTypePageProps) {
            imageUrl: finding.imageUrl,
         }))}
       />
-    </main>
+    </main></InstructorSession>
   );
 }

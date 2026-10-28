@@ -9,6 +9,7 @@ import { env } from "./env";
 
 const COOKIE = "instructor_session";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const renewedRequests = new WeakSet<Request>();
 
 function client(key: string, userAgent?: string) {
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, key, {
@@ -53,35 +54,52 @@ export async function setSessionCookie(token: string) {
   (await cookies()).set(COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/",
   });
+  (await cookies()).set("instructor_identity", hash(token), {
+    httpOnly: false, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/",
+  });
 }
 
 export async function clearSessionCookie() {
   (await cookies()).delete(COOKIE);
+  (await cookies()).delete("instructor_identity");
 }
 
-export async function currentInstructor() {
+export async function currentInstructor(activity = false, expectedSession?: string | null) {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
-  const rows = await sql<{ user_id: string; email: string; setup_required: boolean; setup_session: boolean }[]>`
-    select i.user_id, u.email, i.setup_required, s.setup_session
-    from public.instructor_sessions s
-    join public.instructors i on i.user_id = s.user_id
+  if (expectedSession != null && expectedSession !== hash(token)) return null;
+  const rows = await sql<{ user_id: string; email: string; setup_required: boolean; setup_session: boolean; expires_at: Date; session_key: string }[]>`
+    update public.instructor_sessions s
+    set expires_at = case when ${activity} and not s.setup_session then clock_timestamp() + interval '2 hours' else s.expires_at end
+    from public.instructors i
     join auth.users u on u.id = i.user_id
-    join auth.sessions a on a.id = s.auth_session_id and a.user_id = u.id
+    join auth.sessions a on a.user_id = u.id
     where s.token_hash = ${hash(token)}
+      and s.user_id = i.user_id and a.id = s.auth_session_id
+      and s.expires_at > clock_timestamp()
       and (a.not_after is null or a.not_after > now())
       and s.credential_hash = encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
       and s.setup_session = i.setup_required
       and u.deleted_at is null
       and (u.banned_until is null or u.banned_until < now())
+    returning i.user_id, u.email, i.setup_required, s.setup_session, s.expires_at, s.token_hash as session_key
   `;
   return rows[0] ?? null;
 }
 
+function isNavigationActivity(requestHeaders: Headers): boolean {
+  const marker = /(?:^|;\s*)instructor_navigation=1(?:;|$)/.test(requestHeaders.get("cookie") ?? "");
+  return (requestHeaders.get("sec-fetch-user") === "?1" || marker)
+    && requestHeaders.get("sec-fetch-mode") === "navigate"
+    && !requestHeaders.has("next-router-prefetch")
+    && requestHeaders.get("purpose") !== "prefetch";
+}
+
 export async function requireInstructorPage(destination: string) {
-  const instructor = await currentInstructor();
+  const requestHeaders = await headers();
+  const instructor = await currentInstructor(isNavigationActivity(requestHeaders));
   if (!instructor) {
-    const intended = (await headers()).get("x-instructor-destination") ?? destination;
+    const intended = requestHeaders.get("x-instructor-destination") ?? destination;
     redirect(`/sign-in?next=${encodeURIComponent(safeDestination(intended))}`);
   }
   if (instructor.setup_required) redirect("/password-setup");
@@ -92,11 +110,45 @@ export async function requireInstructorApi(request: Request): Promise<NextRespon
   if (request.method !== "GET" && request.method !== "HEAD" && !sameOrigin(request)) {
     return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 403 });
   }
-  const instructor = await currentInstructor();
+  const activity = request.method !== "GET" && request.method !== "HEAD"
+    && (request.headers.get("x-instructor-activity") === "1" || isNavigationActivity(request.headers));
+  const expectedSession = request.headers.get("x-instructor-session") ?? new URL(request.url).searchParams.get("instructor_session");
+  const instructor = await currentInstructor(activity, expectedSession);
   if (!instructor || instructor.setup_required) {
+    if (request.headers.get("sec-fetch-mode") === "navigate") {
+      let destination = "/";
+      try {
+        const referer = new URL(request.headers.get("referer") ?? "");
+        const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+        const protocol = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.slice(0, -1);
+        if (referer.host === host && referer.protocol === `${protocol}:`) destination = safeDestination(referer.pathname + referer.search);
+      } catch {}
+      return new NextResponse(null, { status: 303, headers: { Location: `/sign-in?next=${encodeURIComponent(destination)}` } });
+    }
     return NextResponse.json({ ok: false, error: "Bitte melde dich an." }, { status: 401 });
   }
+  if (activity) renewedRequests.add(request);
   return null;
+}
+
+// Only the authoritative authentication check can signal renewal, including
+// when validation later rejects an action. Infrastructure errors cannot.
+export function withInstructorDeadline<T extends unknown[]>(handler: (request: Request, ...args: T) => Promise<NextResponse>) {
+  return async (request: Request, ...args: T): Promise<NextResponse> => {
+    const response = await handler(request, ...args);
+    if (renewedRequests.has(request)) response.headers.set("x-instructor-renewed", "1");
+    return response;
+  };
+}
+
+export async function signOut(expectedSession: string) {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (token && hash(token) !== expectedSession) return false;
+  if (token && /^[a-f0-9]{64}$/.test(token)) {
+    await sql`delete from auth.sessions where id in (select auth_session_id from public.instructor_sessions where token_hash = ${hash(token)})`;
+  }
+  await clearSessionCookie();
+  return true;
 }
 
 export async function signIn(email: string, password: string) {
@@ -156,6 +208,7 @@ export async function completeSetup(password: string): Promise<{ email: string }
       join public.instructor_sessions s on s.user_id = i.user_id
       join auth.sessions a on a.id = s.auth_session_id and a.user_id = i.user_id
       where s.token_hash = ${hash(token)} and s.setup_session and i.setup_required
+        and s.expires_at > clock_timestamp()
         and (a.not_after is null or a.not_after > now())
         and s.credential_hash = encode(extensions.digest(u.encrypted_password, 'sha256'), 'hex')
         and u.deleted_at is null

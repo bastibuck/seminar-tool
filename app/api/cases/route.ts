@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 
 import { caseTypeExists, createCase } from "@/lib/cases";
 import { redirectTo } from "@/lib/redirect";
-import { requireInstructorApi } from "@/lib/instructor-auth";
+import { requireInstructorApi, withInstructorDeadline } from "@/lib/instructor-auth";
 
 function redirectToError(message: string): NextResponse {
   return redirectTo(`/?error=${encodeURIComponent(message)}`);
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function post(request: Request): Promise<NextResponse> {
   const denied = await requireInstructorApi(request);
   if (denied) return denied;
   const formData = await request.formData();
@@ -27,3 +27,5 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   return redirectTo(`/cockpit/${cockpitId}`);
 }
+
+export const POST = withInstructorDeadline(post);

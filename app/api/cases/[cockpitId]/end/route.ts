@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 
 import { notifyViewerOfChange } from "@/lib/broadcast";
 import { endCase } from "@/lib/cases";
-import { requireInstructorApi } from "@/lib/instructor-auth";
+import { requireInstructorApi, withInstructorDeadline } from "@/lib/instructor-auth";
 
 type RouteContext = {
   params: Promise<{ cockpitId: string }>;
 };
 
-export async function POST(
+async function post(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
@@ -44,3 +44,5 @@ export async function POST(
     endedAt: result.endedAt.toISOString(),
   });
 }
+
+export const POST = withInstructorDeadline(post);

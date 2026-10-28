@@ -10,7 +10,7 @@ import {
 
 import { isLargerThanBytes, jsonError } from "../../http";
 import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
-import { requireInstructorApi } from "@/lib/instructor-auth";
+import { requireInstructorApi, withInstructorDeadline } from "@/lib/instructor-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -33,7 +33,7 @@ export async function GET(
   });
 }
 
-export async function POST(
+async function post(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
@@ -64,7 +64,7 @@ export async function POST(
   }
 }
 
-export async function PATCH(
+async function patch(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
@@ -88,7 +88,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function remove(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
@@ -112,7 +112,7 @@ export async function DELETE(
   }
 }
 
-export async function PUT(
+async function put(
   request: Request,
   context: RouteContext,
 ): Promise<NextResponse> {
@@ -133,3 +133,8 @@ export async function PUT(
       return NextResponse.json({ ok: true });
   }
 }
+
+export const POST = withInstructorDeadline(post);
+export const PATCH = withInstructorDeadline(patch);
+export const DELETE = withInstructorDeadline(remove);
+export const PUT = withInstructorDeadline(put);

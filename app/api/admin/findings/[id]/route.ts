@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { isLargerThanBytes } from "../../http";
 import { findingNameIsAvailable, getFinding, renameFinding, replaceFindingImage } from "@/lib/admin";
 import { FINDING_IMAGE_REQUEST_MAX_BYTES, processFindingImage } from "@/lib/finding-image";
-import { requireInstructorApi } from "@/lib/instructor-auth";
+import { requireInstructorApi, withInstructorDeadline } from "@/lib/instructor-auth";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -15,7 +15,7 @@ export async function GET(request: Request, context: Context) {
   return NextResponse.json({ ok: true, finding: { id: finding.id, caseTypeId: finding.caseTypeId, name: finding.name } });
 }
 
-export async function PATCH(request: Request, context: Context) {
+async function patch(request: Request, context: Context) {
   const denied = await requireInstructorApi(request);
   if (denied) return denied;
   const id = (await context.params).id;
@@ -41,3 +41,5 @@ export async function PATCH(request: Request, context: Context) {
   if (result.status === "duplicate-name") return NextResponse.json({ error: "Ein Befund mit diesem Namen existiert bereits." }, { status: 409 });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = withInstructorDeadline(patch);

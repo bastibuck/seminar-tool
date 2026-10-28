@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { formatCaseCode } from "@/lib/case-code";
 import { getCaseOverview } from "@/lib/cases";
 import { requireInstructorPage } from "@/lib/instructor-auth";
+import { InstructorSession } from "@/app/instructor-session";
 
 import { CockpitClient } from "./cockpit-client";
 
@@ -19,7 +20,7 @@ export default async function CockpitPage({
   params,
 }: CockpitPageProps) {
   const { id } = await params;
-  await requireInstructorPage(`/cockpit/${encodeURIComponent(id)}`);
+  const instructor = await requireInstructorPage(`/cockpit/${encodeURIComponent(id)}`);
 
   if (!COCKPIT_ID_PATTERN.test(id)) notFound();
 
@@ -27,7 +28,7 @@ export default async function CockpitPage({
   if (!overview) notFound();
 
   return (
-    <main className="shell">
+    <InstructorSession email={instructor.email} sessionKey={instructor.session_key} remainingMs={instructor.expires_at.getTime() - Date.now()}><main className="shell">
       <p className="eyebrow">Cockpit</p>
       <h1>{overview.name}</h1>
       <p>
@@ -45,6 +46,6 @@ export default async function CockpitPage({
             : null,
         }))}
       />
-    </main>
+    </main></InstructorSession>
   );
 }

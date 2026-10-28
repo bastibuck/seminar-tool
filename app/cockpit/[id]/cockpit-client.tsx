@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { useInstructorFetch, type InstructorFetch } from "@/app/instructor-session";
 
 import { ReleaseDialog } from "./release-dialog";
 
@@ -31,8 +32,8 @@ function formatTime(iso: string): string {
   return releaseTimeFormat.format(new Date(iso));
 }
 
-async function postFormAction(body: URLSearchParams, url: string): Promise<void> {
-  const response = await fetch(url, {
+async function postFormAction(fetchInstructor: InstructorFetch, body: URLSearchParams, url: string): Promise<void> {
+  const response = await fetchInstructor(url, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -58,6 +59,7 @@ export function CockpitClient({
   findings: initialFindings,
   endedAt: initialEndedAt,
 }: CockpitClientProps) {
+  const fetchInstructor = useInstructorFetch();
   const queryClient = useQueryClient();
   const queryKey = ["cockpit", cockpitId] as const;
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function CockpitClient({
   const { data } = useQuery<CockpitQueryData>({
     queryKey,
     queryFn: async () => {
-      const response = await fetch(`/api/cases/${cockpitId}`);
+      const response = await fetchInstructor(`/api/cases/${cockpitId}`);
       if (!response.ok) throw new Error("Fall konnte nicht geladen werden.");
       return response.json();
     },
@@ -81,6 +83,7 @@ export function CockpitClient({
   const releaseMutation = useMutation({
     mutationFn: ({ findingId, intent, note }: ReleaseVariables) =>
       postFormAction(
+        fetchInstructor,
         new URLSearchParams({
           findingId,
           intent,
@@ -119,7 +122,7 @@ export function CockpitClient({
   });
 
   const endMutation = useMutation({
-    mutationFn: () => postFormAction(new URLSearchParams(), `/api/cases/${cockpitId}/end`),
+    mutationFn: () => postFormAction(fetchInstructor, new URLSearchParams(), `/api/cases/${cockpitId}/end`),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<CockpitQueryData>(queryKey);

@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { validateFindingImage } from "@/lib/finding-image/validate";
+import { useInstructorFetch, type InstructorFetch } from "@/app/instructor-session";
 
 export type EditorFinding = {
   id: string;
@@ -13,8 +14,8 @@ export type EditorFinding = {
   imageUrl?: string;
 };
 
-async function mutate(url: string, method: string, body: BodyInit) {
-  const response = await fetch(url, {
+async function mutate(fetchInstructor: InstructorFetch, url: string, method: string, body: BodyInit) {
+  const response = await fetchInstructor(url, {
     method,
     ...(body instanceof URLSearchParams
       ? { headers: { "content-type": "application/x-www-form-urlencoded" } }
@@ -31,6 +32,7 @@ async function mutate(url: string, method: string, body: BodyInit) {
 }
 
 export function FindingsEditor({ caseTypeId, initialFindings }: { caseTypeId: string; initialFindings: EditorFinding[] }) {
+  const fetchInstructor = useInstructorFetch();
   const queryClient = useQueryClient();
   const queryKey = ["admin", "case-types", caseTypeId] as const;
   const createDialogRef = useRef<HTMLDialogElement>(null);
@@ -48,7 +50,7 @@ export function FindingsEditor({ caseTypeId, initialFindings }: { caseTypeId: st
   const { data } = useQuery<EditorFinding[]>({
     queryKey,
     queryFn: async () => {
-      const response = await fetch(`/api/admin/case-types/${caseTypeId}`);
+      const response = await fetchInstructor(`/api/admin/case-types/${caseTypeId}`);
       if (!response.ok) throw new Error("Befunde konnten nicht geladen werden.");
       return (await response.json()).findings;
     },
@@ -86,7 +88,7 @@ export function FindingsEditor({ caseTypeId, initialFindings }: { caseTypeId: st
       const body = new FormData();
       body.set("name", value);
       body.set("image", file);
-      return mutate(`/api/admin/case-types/${caseTypeId}`, "POST", body);
+      return mutate(fetchInstructor, `/api/admin/case-types/${caseTypeId}`, "POST", body);
     },
     onSuccess: () => { createDialogRef.current?.close(); setName(""); discardImageSelection(); refresh(); },
     onError: (err) => setError(err.message),
@@ -96,18 +98,18 @@ export function FindingsEditor({ caseTypeId, initialFindings }: { caseTypeId: st
       const body = new FormData();
       body.set("name", value);
       if (file) body.set("image", file);
-      return mutate(`/api/admin/findings/${id}`, "PATCH", body);
+      return mutate(fetchInstructor, `/api/admin/findings/${id}`, "PATCH", body);
     },
     onSuccess: () => { editDialogRef.current?.close(); discardImageSelection(); refresh(); },
     onError: (err) => setError(err.message),
   });
   const deleteMutation = useMutation({
-    mutationFn: (findingId: string) => mutate(`/api/admin/case-types/${caseTypeId}`, "DELETE", new URLSearchParams({ findingId })),
+    mutationFn: (findingId: string) => mutate(fetchInstructor, `/api/admin/case-types/${caseTypeId}`, "DELETE", new URLSearchParams({ findingId })),
     onSuccess: () => { deleteDialogRef.current?.close(); refresh(); },
     onError: (err) => setError(err.message),
   });
   const swapMutation = useMutation({
-    mutationFn: ({ findingA, findingB }: { findingA: string; findingB: string }) => mutate(`/api/admin/case-types/${caseTypeId}`, "PUT", new URLSearchParams({ findingA, findingB })),
+    mutationFn: ({ findingA, findingB }: { findingA: string; findingB: string }) => mutate(fetchInstructor, `/api/admin/case-types/${caseTypeId}`, "PUT", new URLSearchParams({ findingA, findingB })),
     onSuccess: refresh,
     onError: (err) => setError(err.message),
   });

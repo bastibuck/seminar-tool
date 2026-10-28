@@ -14,12 +14,16 @@ export default async function PasswordSetupPage({ searchParams }: { searchParams
       <h1>Passwort festlegen</h1>
       <p className="lede">Wähle ein neues Passwort mit mindestens 12 Zeichen. Leerzeichen sind erlaubt.</p>
       {error ? <p className="alert" role="alert">{error}</p> : null}
-      <form className="surface form-card" action="/api/instructor/password-setup" method="post">
-        <label htmlFor="password">Neues Passwort</label>
-        <input id="password" name="password" type="password" autoComplete="new-password" minLength={12} required />
-        <label htmlFor="confirmation">Passwort wiederholen</label>
-        <input id="confirmation" name="confirmation" type="password" autoComplete="new-password" minLength={12} required />
-        <button className="button" type="submit">Passwort speichern</button>
+      <form className="surface form-card start-case-form" action="/api/instructor/password-setup" method="post">
+        <div className="start-case-form__field">
+          <label htmlFor="password">Neues Passwort</label>
+          <input id="password" name="password" type="password" autoComplete="new-password" minLength={12} required />
+        </div>
+        <div className="start-case-form__field">
+          <label htmlFor="confirmation">Passwort wiederholen</label>
+          <input id="confirmation" name="confirmation" type="password" autoComplete="new-password" minLength={12} required />
+        </div>
+        <button className="button start-case-form__submit" type="submit">Passwort speichern</button>
       </form>
     </main>
   );

@@ -16,6 +16,11 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
+  // Consume the short-lived user-navigation marker even on redirects. It is
+  // never used for prefetches or subrequests, and is not an auth credential.
+  if (request.headers.get("sec-fetch-mode") === "navigate" && request.cookies.has("instructor_navigation")) {
+    response.cookies.delete("instructor_navigation");
+  }
   response.headers.set("Content-Security-Policy", cspHeader);
   return response;
 }
