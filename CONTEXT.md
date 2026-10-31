@@ -7,6 +7,8 @@ A live-teaching companion for medical roleplay workshops: Instructors steer a pa
 **Instructor**:
 A person authorized to run courses and manage Case Types in Seminar Tool. Instructors are not necessarily doctors.
 
+Some Instructors are additionally authorized by the operator to create other Instructors. Newly created Instructors do not receive that authorization.
+
 **Case Type**:
 A predefined case script: a named scenario carrying its fixed list of findings, prepared before any workshop takes place.
 _Avoid_: template, blueprint, preset

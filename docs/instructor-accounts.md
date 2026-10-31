@@ -47,6 +47,18 @@ returning user_id;
 
 Existing approved users retain their current setup state. An existing account enrolled for the first time must also complete password setup.
 
+### Delegate account creation
+
+An operator can allow an existing Instructor to add ordinary Instructors in the admin area. Grant this only to someone trusted to verify the recipient's identity and email address: no verification email is sent, and the creator knows the temporary password and could use it to complete setup themselves. New accounts never inherit this permission. Public sign-up must remain disabled.
+
+In the Supabase Dashboard table editor, set `public.instructors.can_create_instructors` to `true` for the reviewed Instructor's `user_id`. Set it back to `false` to revoke the permission; previously created Instructors remain enrolled. The server checks the permission again when enrolling a new account. Requests already being committed can finish before a concurrent revocation.
+
+The form requires a temporary password of at least 12 Unicode characters and at most 72 UTF-8 bytes (the initial Supabase bcrypt password limit). Spaces are allowed. The creator must share it privately, for example in person, and must not put it in logs or issue comments. It remains usable until setup succeeds, with no expiry. An existing Auth account is never modified or enrolled by this form; investigate generic failures in the dashboard.
+
+Each successful in-app creation is recorded in `public.instructor_creations` with the new Instructor's UUID, the creator's UUID and a timestamp. Join both UUIDs to `auth.users` in the SQL editor to inspect their email addresses. The record is automatically removed when either Instructor is deleted. This table is not exposed to application users or API roles. Dashboard-created accounts are not recorded here.
+
+Auth creation and enrollment are separate operations. If a failure or interruption leaves an Auth account without an Instructor enrollment, it cannot access the app, but it can block a retry with the same email. Review unexpected accounts and enrollment state before any manual cleanup; do not delete or enroll an existing account without the owner's decision. A failure with an uncertain response may also have completed successfully; check both the account and creation record before retrying.
+
 ## Offboarding and recovery
 
 - If a password is forgotten, delete and recreate the account in the dashboard and repeat **all** steps above, including explicit enrollment. There is no password reset or account-settings flow. Recreating the same email creates a new identity and requires setup again.

@@ -383,6 +383,12 @@ h3 {
 .button:hover:not(:disabled) {
   background: var(--teal-dark);
 }
+.button--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
 .button--secondary {
   background: #fff;
   color: var(--ink);
